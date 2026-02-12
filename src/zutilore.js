@@ -8,6 +8,7 @@ var zutiloRE = {
   windows: new Set(),
 
   log: function(msg) {
+    dump("ZutiloRE: " + msg + "\n");
     if (typeof Zotero !== 'undefined' && Zotero.debug) {
       Zotero.debug("ZutiloRE: " + msg);
     }
@@ -128,39 +129,48 @@ var zutiloRE = {
   },
 
   handleMenuCommand: function(commandId) {
-    this.log("handleMenuCommand called: " + commandId);
+    dump("ZutiloRE: handleMenuCommand called: " + commandId + "\n");
     var self = this;
     switch (commandId) {
       case "zutilore-copy-tags":
+        dump("ZutiloRE: Executing copyTags\n");
         this.copyTags();
         break;
       case "zutilore-paste-tags":
-        this.log("Calling pasteTags()...");
+        dump("ZutiloRE: Executing pasteTags\n");
         this.pasteTags().catch(function(e) {
-          self.log("Error in pasteTags: " + e);
+          dump("ZutiloRE: Error in pasteTags: " + e + "\n");
         });
         break;
       case "zutilore-remove-tags":
+        dump("ZutiloRE: Executing removeTags\n");
         this.removeTags().catch(function(e) {
-          self.log("Error in removeTags: " + e);
+          dump("ZutiloRE: Error in removeTags: " + e + "\n");
         });
         break;
       case "zutilore-relate-items":
+        dump("ZutiloRE: Executing relateItems\n");
         this.relateItems().catch(function(e) {
-          self.log("Error in relateItems: " + e);
+          dump("ZutiloRE: Error in relateItems: " + e + "\n");
         });
         break;
       case "zutilore-copy-collection-link":
+        dump("ZutiloRE: Executing copyCollectionLink\n");
         this.copyCollectionLink();
         break;
       default:
-        this.log("Unknown command: " + commandId);
+        dump("ZutiloRE: Unknown command: " + commandId + "\n");
     }
   },
 
   copyTags: function() {
+    dump("ZutiloRE: copyTags() started\n");
     var items = this.getSelectedItems();
-    if (!items.length) return;
+    dump("ZutiloRE: Selected items: " + items.length + "\n");
+    if (!items.length) {
+      dump("ZutiloRE: No items selected\n");
+      return;
+    }
 
     var allTags = new Set();
     items.forEach(function(item) {
@@ -171,8 +181,10 @@ var zutiloRE = {
     });
 
     var tagString = Array.from(allTags).join("\n");
+    dump("ZutiloRE: Copying tags: " + tagString + "\n");
     this.copyToClipboard(tagString);
     this.showNotification("Tags Copied", "Copied " + allTags.size + " unique tags");
+    dump("ZutiloRE: copyTags() completed\n");
   },
 
   pasteTags: async function() {
