@@ -330,9 +330,13 @@ var zutiloRE = {
     var uris = [];
     for (var i = 0; i < items.length; i++) {
       var uri = Zotero.URI.getItemURI(items[i]);
-      // Convert local URI to www.zotero.org link if possible
+      dump("ZutiloRE: Raw URI: " + uri + "\n");
+      
+      // Try different patterns to match Zotero URI
+      // Pattern 1: zotero://library/items/KEY
       var match = uri.match(/zotero:\/\/([^/]+)\/items\/(.+)/);
       if (match) {
+        dump("ZutiloRE: Matched pattern 1\n");
         var libraryID = match[1];
         var itemKey = match[2];
         if (libraryID.startsWith('groups/')) {
@@ -342,12 +346,38 @@ var zutiloRE = {
           // User library - need user ID, use placeholder
           uris.push('https://www.zotero.org/users/USER_ID/items/' + itemKey);
         }
+      } else {
+        // Pattern 2: Try matching zotero://select/ format
+        var match2 = uri.match(/zotero:\/\/select\/(.+)/);
+        if (match2) {
+          dump("ZutiloRE: Matched pattern 2 (select format)\n");
+          // Already in select format, convert to web
+          var selectPath = match2[1];
+          if (selectPath.includes('/items/')) {
+            // Extract key from select path
+            var parts = selectPath.split('/items/');
+            if (parts.length === 2) {
+              var libPath = parts[0];
+              var key = parts[1];
+              if (libPath.startsWith('groups/')) {
+                var groupID = libPath.replace('groups/', '');
+                uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + key);
+              } else {
+                uris.push('https://www.zotero.org/users/USER_ID/items/' + key);
+              }
+            }
+          }
+        } else {
+          dump("ZutiloRE: No pattern matched for URI: " + uri + "\n");
+        }
       }
     }
 
+    dump("ZutiloRE: Generated " + uris.length + " URIs\n");
     var clipboardText = uris.join('\r\n');
     this.copyToClipboard(clipboardText);
     this.showNotification("URIs Copied", "Copied " + uris.length + " Zotero URI(s)");
+  },
   },
 
   copyToClipboard: function(text) {
