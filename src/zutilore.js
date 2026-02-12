@@ -330,41 +330,27 @@ var zutiloRE = {
     // 尝试获取当前用户的 username
     var username = null;
     try {
-      // Zotero 7/8 中获取当前用户 username 的方法
       if (Zotero.Users && Zotero.Users.getCurrentUsername) {
         username = Zotero.Users.getCurrentUsername();
       }
     } catch (e) {
       // 如果获取失败，继续使用 userID
     }
-
-    // 使用 notification 显示调试信息
-    var debugInfo = "Debug: Processing " + items.length + " items\n";
-    if (username) {
-      debugInfo += "Username: " + username + "\n";
-    } else {
-      debugInfo += "Username: (not available, using userID)\n";
-    }
     
     var uris = [];
     for (var i = 0; i < items.length; i++) {
       var uri = Zotero.URI.getItemURI(items[i]);
-      debugInfo += "Item " + (i+1) + " URI: " + uri + "\n";
       
-      // Try different patterns to match Zotero URI
       // Pattern 1: http://zotero.org/users/USERID/items/KEY (web format)
       var match = uri.match(/http:\/\/zotero\.org\/(users\/(\d+)|groups\/(\d+))\/items\/(.+)/);
       if (match) {
-        debugInfo += "  -> Matched pattern 1 (web format)\n";
         var isGroup = match[3] !== undefined;
         var itemKey = match[4];
         
         if (isGroup) {
-          // Group library - use groupID
           var groupID = match[3];
           uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + itemKey);
         } else {
-          // User library - use username if available, otherwise use userID
           if (username) {
             uris.push('https://www.zotero.org/' + username + '/items/' + itemKey);
           } else {
@@ -376,14 +362,12 @@ var zutiloRE = {
         // Pattern 2: zotero://library/items/KEY (local format)
         var match2 = uri.match(/zotero:\/\/([^/]+)\/items\/(.+)/);
         if (match2) {
-          debugInfo += "  -> Matched pattern 2 (local format)\n";
           var libraryID = match2[1];
           var itemKey = match2[2];
           if (libraryID.startsWith('groups/')) {
             var groupID = libraryID.replace('groups/', '');
             uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + itemKey);
           } else {
-            // User library - use username if available
             if (username) {
               uris.push('https://www.zotero.org/' + username + '/items/' + itemKey);
             } else {
@@ -391,10 +375,9 @@ var zutiloRE = {
             }
           }
         } else {
-          // Pattern 3: Try matching zotero://select/ format
+          // Pattern 3: zotero://select/ format
           var match3 = uri.match(/zotero:\/\/select\/(.+)/);
           if (match3) {
-            debugInfo += "  -> Matched pattern 3 (select format)\n";
             var selectPath = match3[1];
             if (selectPath.includes('/items/')) {
               var parts = selectPath.split('/items/');
@@ -405,7 +388,6 @@ var zutiloRE = {
                   var groupID = libPath.replace('groups/', '');
                   uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + key);
                 } else {
-                  // User library
                   if (username) {
                     uris.push('https://www.zotero.org/' + username + '/items/' + key);
                   } else {
@@ -414,23 +396,13 @@ var zutiloRE = {
                 }
               }
             }
-          } else {
-            debugInfo += "  -> No pattern matched!\n";
           }
         }
       }
     }
 
-    debugInfo += "Generated " + uris.length + " URIs";
-    
-    // 先显示调试信息
-    this.showNotification("Debug Info", debugInfo);
-    
-    // 然后复制到剪贴板
     var clipboardText = uris.join('\r\n');
     this.copyToClipboard(clipboardText);
-    
-    // 最后显示结果
     this.showNotification("URIs Copied", "Copied " + uris.length + " Zotero URI(s)");
   },
 

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#d93a3a"/>
+  
+  <!-- Inner circle -->
+  <circle cx="64" cy="64" r="50" fill="#e85a5a"/>
+  
+  <!-- Z letter -->
+  <path d="M 38 38 L 90 38 L 48 90 L 90 90" 
+        stroke="white" 
+        stroke-width="12" 
+        fill="none" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <!-- Tool wrench accent -->
+  <circle cx="100" cy="100" r="18" fill="#333"/>
+  <path d="M 92 92 L 108 108 M 108 92 L 92 108" 
+        stroke="white" 
+        stroke-width="4" 
+        stroke-linecap="round"/>
+</svg>
