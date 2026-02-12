@@ -327,16 +327,19 @@ var zutiloRE = {
       return;
     }
 
+    // 使用 notification 显示调试信息
+    var debugInfo = "Debug: Processing " + items.length + " items\n";
+    
     var uris = [];
     for (var i = 0; i < items.length; i++) {
       var uri = Zotero.URI.getItemURI(items[i]);
-      dump("ZutiloRE: Raw URI: " + uri + "\n");
+      debugInfo += "Item " + (i+1) + " URI: " + uri + "\n";
       
       // Try different patterns to match Zotero URI
       // Pattern 1: zotero://library/items/KEY
       var match = uri.match(/zotero:\/\/([^/]+)\/items\/(.+)/);
       if (match) {
-        dump("ZutiloRE: Matched pattern 1\n");
+        debugInfo += "  -> Matched pattern 1\n";
         var libraryID = match[1];
         var itemKey = match[2];
         if (libraryID.startsWith('groups/')) {
@@ -350,7 +353,7 @@ var zutiloRE = {
         // Pattern 2: Try matching zotero://select/ format
         var match2 = uri.match(/zotero:\/\/select\/(.+)/);
         if (match2) {
-          dump("ZutiloRE: Matched pattern 2 (select format)\n");
+          debugInfo += "  -> Matched pattern 2 (select format)\n";
           // Already in select format, convert to web
           var selectPath = match2[1];
           if (selectPath.includes('/items/')) {
@@ -368,14 +371,21 @@ var zutiloRE = {
             }
           }
         } else {
-          dump("ZutiloRE: No pattern matched for URI: " + uri + "\n");
+          debugInfo += "  -> No pattern matched!\n";
         }
       }
     }
 
-    dump("ZutiloRE: Generated " + uris.length + " URIs\n");
+    debugInfo += "Generated " + uris.length + " URIs";
+    
+    // 先显示调试信息
+    this.showNotification("Debug Info", debugInfo);
+    
+    // 然后复制到剪贴板
     var clipboardText = uris.join('\r\n');
     this.copyToClipboard(clipboardText);
+    
+    // 最后显示结果
     this.showNotification("URIs Copied", "Copied " + uris.length + " Zotero URI(s)");
   },
 
