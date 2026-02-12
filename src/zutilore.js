@@ -101,8 +101,10 @@ var zutiloRE = {
       var menuitem = doc.createXULElement("menuitem");
       menuitem.id = item.id;
       menuitem.setAttribute("label", item.label);
+      var itemId = item.id;
       menuitem.addEventListener("command", function() {
-        self.handleMenuCommand(item.id);
+        self.log("Menu clicked: " + itemId);
+        self.handleMenuCommand(itemId);
       });
       itemMenu.appendChild(menuitem);
     });
@@ -131,11 +133,13 @@ var zutiloRE = {
   },
 
   handleMenuCommand: function(commandId) {
+    this.log("handleMenuCommand called: " + commandId);
     switch (commandId) {
       case "zutilore-copy-tags":
         this.copyTags();
         break;
       case "zutilore-paste-tags":
+        this.log("Calling pasteTags()...");
         this.pasteTags();
         break;
       case "zutilore-remove-tags":
@@ -147,6 +151,8 @@ var zutiloRE = {
       case "zutilore-copy-collection-link":
         this.copyCollectionLink();
         break;
+      default:
+        this.log("Unknown command: " + commandId);
     }
   },
 
