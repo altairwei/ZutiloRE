@@ -104,7 +104,7 @@ var zutiloRE = {
       var menuitem = doc.createXULElement("menuitem");
       menuitem.id = item.id;
       menuitem.setAttribute("label", item.label);
-      menuitem.setAttribute("oncommand", "zutiloRE.handleMenuCommand('" + item.id + "')");
+      menuitem.setAttribute("oncommand", "Zotero.zutiloRE.handleMenuCommand('" + item.id + "')");
       itemMenu.appendChild(menuitem);
     });
   },
@@ -124,7 +124,7 @@ var zutiloRE = {
     var menuitem = doc.createXULElement("menuitem");
     menuitem.id = "zutilore-copy-collection-link";
     menuitem.setAttribute("label", "Copy Collection Link");
-    menuitem.setAttribute("oncommand", "zutiloRE.handleMenuCommand('zutilore-copy-collection-link')");
+    menuitem.setAttribute("oncommand", "Zotero.zutiloRE.handleMenuCommand('zutilore-copy-collection-link')");
     collectionMenu.appendChild(menuitem);
   },
 
@@ -348,3 +348,8 @@ var zutiloRE = {
     this.windows.clear();
   }
 };
+
+// Expose zutiloRE to global scope for XUL oncommand access
+if (typeof Zotero !== 'undefined') {
+  Zotero.zutiloRE = zutiloRE;
+}
