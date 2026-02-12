@@ -3,7 +3,11 @@
  * Zotero 8 Utility Plugin
  */
 
+// Ensure zutiloRE is created in the global scope of the loaded context
 var zutiloRE = {
+  initialized: false,
+  windows: new Set(),
+}
   initialized: false,
   windows: new Set(),
   
