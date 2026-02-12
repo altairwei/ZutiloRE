@@ -1,15 +1,10 @@
 /**
  * ZutiloRE - bootstrap.js
- * Based on Zotero's Make It Red example and zotero-pdf-translate best practices
+ * Based on Zotero's Make It Red example
  */
 
 var chromeHandle;
 var zutiloRE;
-
-// Import Services
-const { Services } = ChromeUtils.importESModule(
-  "resource://gre/modules/Services.sys.mjs"
-);
 
 function install(data, reason) {
   dump("ZutiloRE: install() called\n");
@@ -27,6 +22,12 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     if (!rootURI) {
       rootURI = resourceURI.spec;
     }
+
+    // Import Services here where ChromeUtils is available
+    const { Services } = ChromeUtils.importESModule(
+      "resource://gre/modules/Services.sys.mjs"
+    );
+    dump("ZutiloRE: Services imported\n");
 
     // Register chrome
     var aomStartup = Components.classes[
@@ -82,6 +83,11 @@ async function onMainWindowLoad({ window }, reason) {
   dump("ZutiloRE: onMainWindowLoad() called\n");
   
   try {
+    // Import Services here as well
+    const { Services } = ChromeUtils.importESModule(
+      "resource://gre/modules/Services.sys.mjs"
+    );
+
     // Wait for window to be ready
     await new Promise((resolve) => {
       if (window.document.readyState === "complete") {
@@ -108,7 +114,6 @@ async function onMainWindowLoad({ window }, reason) {
 
 async function onMainWindowUnload({ window }, reason) {
   dump("ZutiloRE: onMainWindowUnload() called\n");
-  // Cleanup menus if needed
 }
 
 function shutdown({ id, version, resourceURI, rootURI }, reason) {
