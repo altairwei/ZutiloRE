@@ -8,7 +8,9 @@ var zutiloRE = {
   windows: new Set(),
 
   log: function(msg) {
-    dump("ZutiloRE: " + msg + "\n");
+    if (typeof Zotero !== 'undefined' && Zotero.debug) {
+      Zotero.debug("ZutiloRE: " + msg);
+    }
   },
 
   config: {
