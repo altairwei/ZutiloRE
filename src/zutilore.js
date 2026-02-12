@@ -327,8 +327,24 @@ var zutiloRE = {
       return;
     }
 
+    // 尝试获取当前用户的 username
+    var username = null;
+    try {
+      // Zotero 7/8 中获取当前用户 username 的方法
+      if (Zotero.Users && Zotero.Users.getCurrentUsername) {
+        username = Zotero.Users.getCurrentUsername();
+      }
+    } catch (e) {
+      // 如果获取失败，继续使用 userID
+    }
+
     // 使用 notification 显示调试信息
     var debugInfo = "Debug: Processing " + items.length + " items\n";
+    if (username) {
+      debugInfo += "Username: " + username + "\n";
+    } else {
+      debugInfo += "Username: (not available, using userID)\n";
+    }
     
     var uris = [];
     for (var i = 0; i < items.length; i++) {
@@ -337,18 +353,24 @@ var zutiloRE = {
       
       // Try different patterns to match Zotero URI
       // Pattern 1: http://zotero.org/users/USERID/items/KEY (web format)
-      var match = uri.match(/http:\/\/zotero\.org\/(users\/\d+|groups\/\d+)\/items\/(.+)/);
+      var match = uri.match(/http:\/\/zotero\.org\/(users\/(\d+)|groups\/(\d+))\/items\/(.+)/);
       if (match) {
         debugInfo += "  -> Matched pattern 1 (web format)\n";
-        var libraryPath = match[1];
-        var itemKey = match[2];
-        if (libraryPath.startsWith('groups/')) {
-          var groupID = libraryPath.replace('groups/', '');
+        var isGroup = match[3] !== undefined;
+        var itemKey = match[4];
+        
+        if (isGroup) {
+          // Group library - use groupID
+          var groupID = match[3];
           uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + itemKey);
         } else {
-          // User library - already has user ID
-          var userID = libraryPath.replace('users/', '');
-          uris.push('https://www.zotero.org/users/' + userID + '/items/' + itemKey);
+          // User library - use username if available, otherwise use userID
+          if (username) {
+            uris.push('https://www.zotero.org/' + username + '/items/' + itemKey);
+          } else {
+            var userID = match[2];
+            uris.push('https://www.zotero.org/users/' + userID + '/items/' + itemKey);
+          }
         }
       } else {
         // Pattern 2: zotero://library/items/KEY (local format)
@@ -361,8 +383,12 @@ var zutiloRE = {
             var groupID = libraryID.replace('groups/', '');
             uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + itemKey);
           } else {
-            // User library - need user ID, use placeholder
-            uris.push('https://www.zotero.org/users/USER_ID/items/' + itemKey);
+            // User library - use username if available
+            if (username) {
+              uris.push('https://www.zotero.org/' + username + '/items/' + itemKey);
+            } else {
+              uris.push('https://www.zotero.org/users/USER_ID/items/' + itemKey);
+            }
           }
         } else {
           // Pattern 3: Try matching zotero://select/ format
@@ -379,7 +405,12 @@ var zutiloRE = {
                   var groupID = libPath.replace('groups/', '');
                   uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + key);
                 } else {
-                  uris.push('https://www.zotero.org/users/USER_ID/items/' + key);
+                  // User library
+                  if (username) {
+                    uris.push('https://www.zotero.org/' + username + '/items/' + key);
+                  } else {
+                    uris.push('https://www.zotero.org/users/USER_ID/items/' + key);
+                  }
                 }
               }
             }
