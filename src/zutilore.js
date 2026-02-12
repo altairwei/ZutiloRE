@@ -169,7 +169,12 @@ var zutiloRE = {
 
   pasteTags: async function() {
     var tagString = this.pasteFromClipboard();
-    if (!tagString) return;
+    this.log("Pasted from clipboard: '" + tagString + "'");
+    
+    if (!tagString || !tagString.trim()) {
+      this.showNotification("Error", "Clipboard is empty or no text found");
+      return;
+    }
 
     var tags = tagString.split(/[\n,;]/).map(function(t) {
       return t.trim();
@@ -177,7 +182,18 @@ var zutiloRE = {
       return t;
     });
 
+    this.log("Parsed tags: " + tags.join(", "));
+
+    if (tags.length === 0) {
+      this.showNotification("Error", "No valid tags found in clipboard");
+      return;
+    }
+
     var items = this.getSelectedItems();
+    if (!items.length) {
+      this.showNotification("Error", "No items selected");
+      return;
+    }
 
     for (var i = 0; i < items.length; i++) {
       for (var j = 0; j < tags.length; j++) {
@@ -264,19 +280,27 @@ var zutiloRE = {
   },
 
   pasteFromClipboard: function() {
-    var clipboard = Components.classes["@mozilla.org/widget/clipboard;1"]
-      .getService(Components.interfaces.nsIClipboard);
-    var trans = Components.classes["@mozilla.org/widget/transferable;1"]
-      .createInstance(Components.interfaces.nsITransferable);
-
-    trans.addDataFlavor("text/unicode");
-    clipboard.getData(trans, Components.interfaces.nsIClipboard.kGlobalClipboard);
-
-    var str = {};
     try {
-      trans.getTransferData("text/unicode", str);
-      return str.value.QueryInterface(Components.interfaces.nsISupportsString).data;
+      var clipboard = Components.classes["@mozilla.org/widget/clipboard;1"]
+        .getService(Components.interfaces.nsIClipboard);
+      var trans = Components.classes["@mozilla.org/widget/transferable;1"]
+        .createInstance(Components.interfaces.nsITransferable);
+
+      trans.addDataFlavor("text/unicode");
+      clipboard.getData(trans, Components.interfaces.nsIClipboard.kGlobalClipboard);
+
+      var str = {};
+      var strLen = {};
+      trans.getTransferData("text/unicode", str, strLen);
+      
+      if (str.value) {
+        var result = str.value.QueryInterface(Components.interfaces.nsISupportsString).data;
+        this.log("Clipboard content: '" + result + "'");
+        return result;
+      }
+      return "";
     } catch (e) {
+      this.log("Error reading clipboard: " + e);
       return "";
     }
   },
