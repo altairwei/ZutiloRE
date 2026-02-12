@@ -12,6 +12,8 @@ zip -r zutilore.xpi \
     manifest.json \
     install.rdf \
     bootstrap.js \
+    icon.png \
+    icon@2x.png \
     src/ \
     chrome/ \
     locale/
