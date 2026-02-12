@@ -1,0 +1,31 @@
+# ZutiloRE Build Artifacts
+*.xpi
+*.zip
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Sensitive files (API keys, credentials)
+*.env
+.env.*
+config.local.json
+secrets.json
+*.pem
+*.key
+
+# Temporary files
+*.tmp
+*.temp
+*~
