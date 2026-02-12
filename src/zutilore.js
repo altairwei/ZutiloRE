@@ -101,9 +101,7 @@ var zutiloRE = {
       var menuitem = doc.createXULElement("menuitem");
       menuitem.id = item.id;
       menuitem.setAttribute("label", item.label);
-      menuitem.addEventListener("command", function() {
-        self.handleMenuCommand(item.id);
-      });
+      menuitem.setAttribute("oncommand", "Zotero.zutiloRE.handleMenuCommand('" + item.id + "')");
       itemMenu.appendChild(menuitem);
     });
   },
@@ -120,13 +118,10 @@ var zutiloRE = {
     separator.id = "zutilore-collectionmenu-separator";
     collectionMenu.appendChild(separator);
 
-    var self = this;
     var menuitem = doc.createXULElement("menuitem");
     menuitem.id = "zutilore-copy-collection-link";
     menuitem.setAttribute("label", "Copy Collection Link");
-    menuitem.addEventListener("command", function() {
-      self.handleMenuCommand("zutilore-copy-collection-link");
-    });
+    menuitem.setAttribute("oncommand", "Zotero.zutiloRE.handleMenuCommand('zutilore-copy-collection-link')");
     collectionMenu.appendChild(menuitem);
   },
 
@@ -302,3 +297,8 @@ var zutiloRE = {
     this.windows.clear();
   }
 };
+
+// Expose to Zotero for oncommand access
+if (typeof Zotero !== 'undefined') {
+  Zotero.zutiloRE = zutiloRE;
+}
