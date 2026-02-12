@@ -204,15 +204,23 @@ var zutiloRE = {
   },
 
   copyCollectionLink: function() {
+    dump("ZutiloRE: copyCollectionLink() called\n");
     var collection = this.getSelectedCollection();
-    if (!collection) return;
+    dump("ZutiloRE: collection = " + collection + "\n");
+    if (!collection) {
+      dump("ZutiloRE: No collection selected\n");
+      return;
+    }
 
     var libraryID = collection.libraryID;
     var key = collection.key;
+    dump("ZutiloRE: libraryID = " + libraryID + ", key = " + key + "\n");
     var uri = "zotero://select/library/" + libraryID + "/collections/" + key;
 
+    dump("ZutiloRE: Copying URI: " + uri + "\n");
     this.copyToClipboard(uri);
     this.showNotification("Link Copied", "Collection link copied to clipboard");
+    dump("ZutiloRE: copyCollectionLink() completed\n");
   },
 
   getSelectedItems: function() {
@@ -222,13 +230,26 @@ var zutiloRE = {
   },
 
   getSelectedCollection: function() {
+    dump("ZutiloRE: getSelectedCollection() called\n");
     var zoteroPane = Zotero.getActiveZoteroPane();
+    dump("ZutiloRE: zoteroPane = " + zoteroPane + "\n");
     if (!zoteroPane) return null;
 
     var collectionTreeRow = zoteroPane.getCollectionTreeRow();
-    if (!collectionTreeRow || !collectionTreeRow.isCollection()) return null;
+    dump("ZutiloRE: collectionTreeRow = " + collectionTreeRow + "\n");
+    if (!collectionTreeRow) {
+      dump("ZutiloRE: No collectionTreeRow\n");
+      return null;
+    }
+    dump("ZutiloRE: isCollection() = " + collectionTreeRow.isCollection() + "\n");
+    if (!collectionTreeRow.isCollection()) {
+      dump("ZutiloRE: Not a collection\n");
+      return null;
+    }
 
-    return collectionTreeRow.getObject();
+    var collection = collectionTreeRow.getObject();
+    dump("ZutiloRE: Got collection: " + collection + "\n");
+    return collection;
   },
 
   copyToClipboard: function(text) {
