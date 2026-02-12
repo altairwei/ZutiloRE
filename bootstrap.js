@@ -33,7 +33,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     var manifestURI = Services.io.newURI(rootURI + "manifest.json");
     chromeHandle = aomStartup.registerChrome(manifestURI, [
       ["content", "zutilore", rootURI + "chrome/content/"],
-      ["locale", "zutilore", "en-US", rootURI + "locale/en-US/"],
+      ["locale", "zutilore", "en-US", rootURI + "locale/en-US/"]
     ]);
     dump("ZutiloRE: Chrome registered\n");
 
@@ -42,7 +42,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
       rootURI,
       Zotero,
       Services,
-      Components,
+      Components
     };
     ctx._globalThis = ctx;
 
