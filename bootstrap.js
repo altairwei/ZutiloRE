@@ -50,7 +50,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     dump("ZutiloRE: Loading main script...\n");
     Services.scriptloader.loadSubScript(
       rootURI + "src/zutilore.js",
-      ctx,
+      ctx
     );
     dump("ZutiloRE: Main script loaded\n");
 
