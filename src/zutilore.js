@@ -103,11 +103,7 @@ var zutiloRE = {
       var menuitem = doc.createXULElement("menuitem");
       menuitem.id = item.id;
       menuitem.setAttribute("label", item.label);
-      var itemId = item.id;
-      menuitem.addEventListener("command", function() {
-        self.log("Menu clicked: " + itemId);
-        self.handleMenuCommand(itemId);
-      });
+      menuitem.setAttribute("oncommand", "zutiloRE.handleMenuCommand('" + item.id + "')");
       itemMenu.appendChild(menuitem);
     });
   },
@@ -124,13 +120,10 @@ var zutiloRE = {
     separator.id = "zutilore-collectionmenu-separator";
     collectionMenu.appendChild(separator);
 
-    var self = this;
     var menuitem = doc.createXULElement("menuitem");
     menuitem.id = "zutilore-copy-collection-link";
     menuitem.setAttribute("label", "Copy Collection Link");
-    menuitem.addEventListener("command", function() {
-      self.handleMenuCommand("zutilore-copy-collection-link");
-    });
+    menuitem.setAttribute("oncommand", "zutiloRE.handleMenuCommand('zutilore-copy-collection-link')");
     collectionMenu.appendChild(menuitem);
   },
 
