@@ -129,19 +129,26 @@ var zutiloRE = {
 
   handleMenuCommand: function(commandId) {
     this.log("handleMenuCommand called: " + commandId);
+    var self = this;
     switch (commandId) {
       case "zutilore-copy-tags":
         this.copyTags();
         break;
       case "zutilore-paste-tags":
         this.log("Calling pasteTags()...");
-        this.pasteTags();
+        this.pasteTags().catch(function(e) {
+          self.log("Error in pasteTags: " + e);
+        });
         break;
       case "zutilore-remove-tags":
-        this.removeTags();
+        this.removeTags().catch(function(e) {
+          self.log("Error in removeTags: " + e);
+        });
         break;
       case "zutilore-relate-items":
-        this.relateItems();
+        this.relateItems().catch(function(e) {
+          self.log("Error in relateItems: " + e);
+        });
         break;
       case "zutilore-copy-collection-link":
         this.copyCollectionLink();
@@ -169,10 +176,13 @@ var zutiloRE = {
   },
 
   pasteTags: async function() {
+    this.log("pasteTags() started");
+    
     var tagString = this.pasteFromClipboard();
     this.log("Pasted from clipboard: '" + tagString + "'");
     
     if (!tagString || !tagString.trim()) {
+      this.log("Clipboard empty, showing error");
       this.showNotification("Error", "Clipboard is empty or no text found");
       return;
     }
@@ -191,11 +201,14 @@ var zutiloRE = {
     }
 
     var items = this.getSelectedItems();
+    this.log("Selected items: " + items.length);
+    
     if (!items.length) {
       this.showNotification("Error", "No items selected");
       return;
     }
 
+    this.log("Starting to add tags...");
     for (var i = 0; i < items.length; i++) {
       for (var j = 0; j < tags.length; j++) {
         items[i].addTag(tags[j]);
@@ -204,6 +217,7 @@ var zutiloRE = {
     }
 
     this.showNotification("Tags Pasted", "Added " + tags.length + " tags to " + items.length + " items");
+    this.log("pasteTags() completed");
   },
 
   removeTags: async function() {
