@@ -8,6 +8,11 @@ var zutiloRE = {
     initialized: false,
     rootURI: null,
     
+    // Logging helper
+    log: function(msg) {
+        dump("ZutiloRE: " + msg + "\n");
+    },
+    
     // Configuration
     config: {
         showInItemMenu: true,
@@ -19,7 +24,7 @@ var zutiloRE = {
      * Initialize the plugin
      */
     init: async function() {
-        console.log("ZutiloRE: init() called");
+        this.log("init() called");
         
         this.registerPreferencePane();
         this.registerItemMenu();
@@ -27,7 +32,7 @@ var zutiloRE = {
         this.registerKeyboardShortcuts();
         
         this.initialized = true;
-        console.log("ZutiloRE: init() completed");
+        this.log("init() completed");
     },
     
     /**

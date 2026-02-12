@@ -3,8 +3,32 @@
  * Zotero 8 compatible bootstrap entry point
  */
 
-// Import required modules using ES6 module syntax
-const { Services } = ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs");
+// Use dump for logging (console is not available in bootstrap scope)
+function log(msg) {
+    dump("ZutiloRE: " + msg + "\n");
+}
+
+// Import Services - try different methods for compatibility
+let Services;
+try {
+    // Try ChromeUtils.importESModule (Zotero 8 / Firefox 115)
+    ({ Services } = ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs"));
+} catch (e) {
+    try {
+        // Fallback to ChromeUtils.import (older versions)
+        ({ Services } = ChromeUtils.import("resource://gre/modules/Services.jsm"));
+    } catch (e2) {
+        // Last resort: use global Services if available
+        if (typeof window !== 'undefined' && window.Services) {
+            Services = window.Services;
+        } else if (typeof globalThis.Services !== 'undefined') {
+            Services = globalThis.Services;
+        } else {
+            log("ERROR: Could not import Services");
+            throw new Error("Services not available");
+        }
+    }
+}
 
 // Global state
 let chromeHandle = null;
@@ -14,31 +38,37 @@ let zutiloRE = null;
  * Plugin lifecycle: startup
  */
 function startup({ id, version, rootURI }, reason) {
-    console.log("ZutiloRE: Starting up...");
+    log("Starting up...");
     
-    // Register chrome URLs
-    const aomStartup = Cc["@mozilla.org/addons/addon-manager-startup;1"]
-        .getService(Ci.amIAddonManagerStartup);
-    const manifestURI = Services.io.newURI(rootURI + "manifest.json");
-    chromeHandle = aomStartup.registerChrome(manifestURI, [
-        ["content", "zutilore", "chrome/content/"],
-        ["locale", "zutilore", "en-US", "locale/en-US/"]
-    ]);
-    
-    // Initialize when Zotero is ready
-    if (typeof Zotero !== 'undefined' && Zotero.initialized) {
-        initZutiloRE(rootURI);
-    } else {
-        // Wait for Zotero initialization
-        const observer = {
-            observe: function(subject, topic, data) {
-                if (topic === 'final-ui-startup') {
-                    Services.obs.removeObserver(observer, 'final-ui-startup');
-                    initZutiloRE(rootURI);
+    try {
+        // Register chrome URLs
+        const aomStartup = Cc["@mozilla.org/addons/addon-manager-startup;1"]
+            .getService(Ci.amIAddonManagerStartup);
+        const manifestURI = Services.io.newURI(rootURI + "install.rdf");
+        chromeHandle = aomStartup.registerChrome(manifestURI, [
+            ["content", "zutilore", "chrome/content/"],
+            ["locale", "zutilore", "en-US", "locale/en-US/"]
+        ]);
+        
+        // Initialize when Zotero is ready
+        if (typeof Zotero !== 'undefined' && Zotero.initialized) {
+            initZutiloRE(rootURI);
+        } else {
+            // Wait for Zotero initialization
+            const observer = {
+                observe: function(subject, topic, data) {
+                    if (topic === 'final-ui-startup') {
+                        Services.obs.removeObserver(observer, 'final-ui-startup');
+                        initZutiloRE(rootURI);
+                    }
                 }
-            }
-        };
-        Services.obs.addObserver(observer, 'final-ui-startup');
+            };
+            Services.obs.addObserver(observer, 'final-ui-startup');
+        }
+        
+        log("Startup complete");
+    } catch (e) {
+        log("ERROR in startup: " + e);
     }
 }
 
@@ -47,7 +77,7 @@ function startup({ id, version, rootURI }, reason) {
  */
 async function initZutiloRE(rootURI) {
     try {
-        console.log("ZutiloRE: Initializing...");
+        log("Initializing...");
         
         // Load main module
         const scriptPath = rootURI + 'src/zutilore.js';
@@ -63,9 +93,9 @@ async function initZutiloRE(rootURI) {
             await zutiloRE.init();
         }
         
-        console.log("ZutiloRE: Initialized successfully");
+        log("Initialized successfully");
     } catch (e) {
-        console.error("ZutiloRE: Initialization failed", e);
+        log("ERROR: Initialization failed - " + e);
     }
 }
 
@@ -73,7 +103,7 @@ async function initZutiloRE(rootURI) {
  * Plugin lifecycle: shutdown
  */
 function shutdown({ id, version, rootURI }, reason) {
-    console.log("ZutiloRE: Shutting down...");
+    log("Shutting down...");
     
     if (reason === APP_SHUTDOWN) return;
     
@@ -95,12 +125,12 @@ function shutdown({ id, version, rootURI }, reason) {
  * Plugin lifecycle: install
  */
 function install({ id, version, rootURI }, reason) {
-    console.log("ZutiloRE: Installed");
+    log("Installed");
 }
 
 /**
  * Plugin lifecycle: uninstall
  */
 function uninstall({ id, version, rootURI }, reason) {
-    console.log("ZutiloRE: Uninstalled");
+    log("Uninstalled");
 }
