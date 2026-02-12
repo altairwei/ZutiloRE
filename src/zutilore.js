@@ -94,7 +94,10 @@ var zutiloRE = {
       { id: "zutilore-copy-tags", label: "Copy Tags to Clipboard" },
       { id: "zutilore-paste-tags", label: "Paste Tags from Clipboard" },
       { id: "zutilore-remove-tags", label: "Remove All Tags" },
-      { id: "zutilore-relate-items", label: "Relate Items" }
+      { id: "zutilore-relate-items", label: "Relate Items" },
+      { id: "zutilore-copy-select-link", label: "Copy Select Link" },
+      { id: "zutilore-copy-item-id", label: "Copy Item ID" },
+      { id: "zutilore-copy-item-uri", label: "Copy Zotero URI" }
     ];
 
     var self = this;
@@ -142,6 +145,15 @@ var zutiloRE = {
         break;
       case "zutilore-copy-collection-link":
         this.copyCollectionLink();
+        break;
+      case "zutilore-copy-select-link":
+        this.copyZoteroSelectLink();
+        break;
+      case "zutilore-copy-item-id":
+        this.copyZoteroItemID();
+        break;
+      case "zutilore-copy-item-uri":
+        this.copyZoteroItemURI();
         break;
     }
   },
@@ -259,6 +271,83 @@ var zutiloRE = {
 
     // Zotero 8 uses .ref property instead of getObject()
     return collectionTreeRow.ref || collectionTreeRow.collection || null;
+  },
+
+  copyZoteroSelectLink: function() {
+    var items = this.getSelectedItems();
+    if (!items.length) {
+      this.showNotification("Error", "No items selected");
+      return;
+    }
+
+    var links = [];
+    for (var i = 0; i < items.length; i++) {
+      var libraryType = Zotero.Libraries.get(items[i].libraryID).libraryType;
+      var path;
+      
+      switch (libraryType) {
+        case 'group':
+          path = Zotero.URI.getLibraryPath(items[i].libraryID);
+          break;
+        case 'user':
+        default:
+          path = 'library';
+          break;
+      }
+      
+      links.push('zotero://select/' + path + '/items/' + items[i].key);
+    }
+
+    var clipboardText = links.join('\r\n');
+    this.copyToClipboard(clipboardText);
+    this.showNotification("Links Copied", "Copied " + links.length + " select link(s)");
+  },
+
+  copyZoteroItemID: function() {
+    var items = this.getSelectedItems();
+    if (!items.length) {
+      this.showNotification("Error", "No items selected");
+      return;
+    }
+
+    var ids = [];
+    for (var i = 0; i < items.length; i++) {
+      ids.push(items[i].key);
+    }
+
+    var clipboardText = ids.join('\r\n');
+    this.copyToClipboard(clipboardText);
+    this.showNotification("IDs Copied", "Copied " + ids.length + " item ID(s)");
+  },
+
+  copyZoteroItemURI: function() {
+    var items = this.getSelectedItems();
+    if (!items.length) {
+      this.showNotification("Error", "No items selected");
+      return;
+    }
+
+    var uris = [];
+    for (var i = 0; i < items.length; i++) {
+      var uri = Zotero.URI.getItemURI(items[i]);
+      // Convert local URI to www.zotero.org link if possible
+      var match = uri.match(/zotero:\/\/([^/]+)\/items\/(.+)/);
+      if (match) {
+        var libraryID = match[1];
+        var itemKey = match[2];
+        if (libraryID.startsWith('groups/')) {
+          var groupID = libraryID.replace('groups/', '');
+          uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + itemKey);
+        } else {
+          // User library - need user ID, use placeholder
+          uris.push('https://www.zotero.org/users/USER_ID/items/' + itemKey);
+        }
+      }
+    }
+
+    var clipboardText = uris.join('\r\n');
+    this.copyToClipboard(clipboardText);
+    this.showNotification("URIs Copied", "Copied " + uris.length + " Zotero URI(s)");
   },
 
   copyToClipboard: function(text) {
