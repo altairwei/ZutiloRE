@@ -12,6 +12,7 @@
   "applications": {
     "zotero": {
       "id": "zutilore@altairwei.github.io",
+      "update_url": "https://raw.githubusercontent.com/altairwei/ZutiloRE/main/updates.json",
       "strict_min_version": "7.0",
       "strict_max_version": "8.*"
     }
