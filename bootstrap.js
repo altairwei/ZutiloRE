@@ -23,11 +23,8 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
       rootURI = resourceURI.spec;
     }
 
-    // Import Services here where ChromeUtils is available
-    const { Services } = ChromeUtils.importESModule(
-      "resource://gre/modules/Services.sys.mjs"
-    );
-    dump("ZutiloRE: Services imported\n");
+    // Services is available globally in Zotero bootstrap scope
+    dump("ZutiloRE: Using global Services\n");
 
     // Register chrome
     var aomStartup = Components.classes[
@@ -46,7 +43,6 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
       Zotero,
       Services,
       Components,
-      ChromeUtils,
     };
     ctx._globalThis = ctx;
 
@@ -75,7 +71,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
   } catch (e) {
     dump("ZutiloRE: ERROR in startup: " + e + "\n");
     dump("ZutiloRE: Stack: " + (e.stack || "no stack") + "\n");
-    throw e; // Re-throw so Zotero knows there was an error
+    throw e;
   }
 }
 
@@ -83,11 +79,6 @@ async function onMainWindowLoad({ window }, reason) {
   dump("ZutiloRE: onMainWindowLoad() called\n");
   
   try {
-    // Import Services here as well
-    const { Services } = ChromeUtils.importESModule(
-      "resource://gre/modules/Services.sys.mjs"
-    );
-
     // Wait for window to be ready
     await new Promise((resolve) => {
       if (window.document.readyState === "complete") {
