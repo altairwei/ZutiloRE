@@ -80,6 +80,11 @@ var zutiloRE = {
   addItemMenuItems: function(itemMenu) {
     var doc = itemMenu.ownerDocument;
 
+    // Check if already added
+    if (doc.getElementById("zutilore-itemmenu-separator")) {
+      return;
+    }
+
     var separator = doc.createXULElement("menuseparator");
     separator.id = "zutilore-itemmenu-separator";
     itemMenu.appendChild(separator);
@@ -105,6 +110,11 @@ var zutiloRE = {
 
   addCollectionMenuItems: function(collectionMenu) {
     var doc = collectionMenu.ownerDocument;
+
+    // Check if already added
+    if (doc.getElementById("zutilore-collectionmenu-separator")) {
+      return;
+    }
 
     var separator = doc.createXULElement("menuseparator");
     separator.id = "zutilore-collectionmenu-separator";
