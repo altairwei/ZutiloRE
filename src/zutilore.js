@@ -48,8 +48,12 @@ var zutiloRE = {
           menuType: "menuitem",
           label: "Paste Tags from Clipboard",
           onCommand: (event, context) => {
-            this.log("Paste Tags clicked");
-            this.pasteTags(context.items);
+            Zotero.debug("ZutiloRE: Paste Tags menu clicked");
+            try {
+              this.pasteTags(context.items);
+            } catch (e) {
+              Zotero.debug("ZutiloRE: Error in pasteTags: " + e);
+            }
           }
         },
         {
@@ -111,15 +115,20 @@ var zutiloRE = {
   },
 
   pasteTags: async function(items) {
+    Zotero.debug("ZutiloRE: pasteTags() called");
+    
     if (!items || !items.length) {
+      Zotero.debug("ZutiloRE: No items selected");
       this.showNotification("Error", "No items selected");
       return;
     }
 
+    Zotero.debug("ZutiloRE: Reading clipboard...");
     var tagString = this.pasteFromClipboard();
-    this.log("Pasted from clipboard: '" + tagString + "'");
+    Zotero.debug("ZutiloRE: Clipboard content: '" + tagString + "'");
 
     if (!tagString || !tagString.trim()) {
+      Zotero.debug("ZutiloRE: Clipboard empty");
       this.showNotification("Error", "Clipboard is empty");
       return;
     }
@@ -130,13 +139,14 @@ var zutiloRE = {
       return t;
     });
 
-    this.log("Parsed tags: " + tags.join(", "));
+    Zotero.debug("ZutiloRE: Parsed " + tags.length + " tags");
 
     if (tags.length === 0) {
       this.showNotification("Error", "No valid tags found");
       return;
     }
 
+    Zotero.debug("ZutiloRE: Adding tags to " + items.length + " items");
     for (var i = 0; i < items.length; i++) {
       for (var j = 0; j < tags.length; j++) {
         items[i].addTag(tags[j]);
@@ -145,6 +155,7 @@ var zutiloRE = {
     }
 
     this.showNotification("Tags Pasted", "Added " + tags.length + " tags to " + items.length + " items");
+    Zotero.debug("ZutiloRE: Tags pasted successfully");
   },
 
   removeTags: async function(items) {
