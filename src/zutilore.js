@@ -336,42 +336,56 @@ var zutiloRE = {
       debugInfo += "Item " + (i+1) + " URI: " + uri + "\n";
       
       // Try different patterns to match Zotero URI
-      // Pattern 1: zotero://library/items/KEY
-      var match = uri.match(/zotero:\/\/([^/]+)\/items\/(.+)/);
+      // Pattern 1: http://zotero.org/users/USERID/items/KEY (web format)
+      var match = uri.match(/http:\/\/zotero\.org\/(users\/\d+|groups\/\d+)\/items\/(.+)/);
       if (match) {
-        debugInfo += "  -> Matched pattern 1\n";
-        var libraryID = match[1];
+        debugInfo += "  -> Matched pattern 1 (web format)\n";
+        var libraryPath = match[1];
         var itemKey = match[2];
-        if (libraryID.startsWith('groups/')) {
-          var groupID = libraryID.replace('groups/', '');
+        if (libraryPath.startsWith('groups/')) {
+          var groupID = libraryPath.replace('groups/', '');
           uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + itemKey);
         } else {
-          // User library - need user ID, use placeholder
-          uris.push('https://www.zotero.org/users/USER_ID/items/' + itemKey);
+          // User library - already has user ID
+          var userID = libraryPath.replace('users/', '');
+          uris.push('https://www.zotero.org/users/' + userID + '/items/' + itemKey);
         }
       } else {
-        // Pattern 2: Try matching zotero://select/ format
-        var match2 = uri.match(/zotero:\/\/select\/(.+)/);
+        // Pattern 2: zotero://library/items/KEY (local format)
+        var match2 = uri.match(/zotero:\/\/([^/]+)\/items\/(.+)/);
         if (match2) {
-          debugInfo += "  -> Matched pattern 2 (select format)\n";
-          // Already in select format, convert to web
-          var selectPath = match2[1];
-          if (selectPath.includes('/items/')) {
-            // Extract key from select path
-            var parts = selectPath.split('/items/');
-            if (parts.length === 2) {
-              var libPath = parts[0];
-              var key = parts[1];
-              if (libPath.startsWith('groups/')) {
-                var groupID = libPath.replace('groups/', '');
-                uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + key);
-              } else {
-                uris.push('https://www.zotero.org/users/USER_ID/items/' + key);
-              }
-            }
+          debugInfo += "  -> Matched pattern 2 (local format)\n";
+          var libraryID = match2[1];
+          var itemKey = match2[2];
+          if (libraryID.startsWith('groups/')) {
+            var groupID = libraryID.replace('groups/', '');
+            uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + itemKey);
+          } else {
+            // User library - need user ID, use placeholder
+            uris.push('https://www.zotero.org/users/USER_ID/items/' + itemKey);
           }
         } else {
-          debugInfo += "  -> No pattern matched!\n";
+          // Pattern 3: Try matching zotero://select/ format
+          var match3 = uri.match(/zotero:\/\/select\/(.+)/);
+          if (match3) {
+            debugInfo += "  -> Matched pattern 3 (select format)\n";
+            var selectPath = match3[1];
+            if (selectPath.includes('/items/')) {
+              var parts = selectPath.split('/items/');
+              if (parts.length === 2) {
+                var libPath = parts[0];
+                var key = parts[1];
+                if (libPath.startsWith('groups/')) {
+                  var groupID = libPath.replace('groups/', '');
+                  uris.push('https://www.zotero.org/groups/' + groupID + '/items/' + key);
+                } else {
+                  uris.push('https://www.zotero.org/users/USER_ID/items/' + key);
+                }
+              }
+            }
+          } else {
+            debugInfo += "  -> No pattern matched!\n";
+          }
         }
       }
     }
