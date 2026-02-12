@@ -91,6 +91,7 @@ var zutiloRE = {
 
     var items = [
       { id: "zutilore-copy-tags", label: "Copy Tags to Clipboard" },
+      { id: "zutilore-paste-tags", label: "Paste Tags from Clipboard" },
       { id: "zutilore-remove-tags", label: "Remove All Tags" },
       { id: "zutilore-relate-items", label: "Relate Items" }
     ];
@@ -134,6 +135,9 @@ var zutiloRE = {
       case "zutilore-copy-tags":
         this.copyTags();
         break;
+      case "zutilore-paste-tags":
+        this.pasteTags();
+        break;
       case "zutilore-remove-tags":
         this.removeTags();
         break;
@@ -161,6 +165,28 @@ var zutiloRE = {
     var tagString = Array.from(allTags).join("\n");
     this.copyToClipboard(tagString);
     this.showNotification("Tags Copied", "Copied " + allTags.size + " unique tags");
+  },
+
+  pasteTags: async function() {
+    var tagString = this.pasteFromClipboard();
+    if (!tagString) return;
+
+    var tags = tagString.split(/[\n,;]/).map(function(t) {
+      return t.trim();
+    }).filter(function(t) {
+      return t;
+    });
+
+    var items = this.getSelectedItems();
+
+    for (var i = 0; i < items.length; i++) {
+      for (var j = 0; j < tags.length; j++) {
+        items[i].addTag(tags[j]);
+      }
+      await items[i].saveTx();
+    }
+
+    this.showNotification("Tags Pasted", "Added " + tags.length + " tags to " + items.length + " items");
   },
 
   removeTags: async function() {
@@ -204,23 +230,15 @@ var zutiloRE = {
   },
 
   copyCollectionLink: function() {
-    dump("ZutiloRE: copyCollectionLink() called\n");
     var collection = this.getSelectedCollection();
-    dump("ZutiloRE: collection = " + collection + "\n");
-    if (!collection) {
-      dump("ZutiloRE: No collection selected\n");
-      return;
-    }
+    if (!collection) return;
 
     var libraryID = collection.libraryID;
     var key = collection.key;
-    dump("ZutiloRE: libraryID = " + libraryID + ", key = " + key + "\n");
     var uri = "zotero://select/library/" + libraryID + "/collections/" + key;
 
-    dump("ZutiloRE: Copying URI: " + uri + "\n");
     this.copyToClipboard(uri);
     this.showNotification("Link Copied", "Collection link copied to clipboard");
-    dump("ZutiloRE: copyCollectionLink() completed\n");
   },
 
   getSelectedItems: function() {
@@ -230,32 +248,42 @@ var zutiloRE = {
   },
 
   getSelectedCollection: function() {
-    dump("ZutiloRE: getSelectedCollection() called\n");
     var zoteroPane = Zotero.getActiveZoteroPane();
-    dump("ZutiloRE: zoteroPane = " + zoteroPane + "\n");
     if (!zoteroPane) return null;
 
     var collectionTreeRow = zoteroPane.getCollectionTreeRow();
-    dump("ZutiloRE: collectionTreeRow = " + collectionTreeRow + "\n");
-    if (!collectionTreeRow) {
-      dump("ZutiloRE: No collectionTreeRow\n");
-      return null;
-    }
-    dump("ZutiloRE: isCollection() = " + collectionTreeRow.isCollection() + "\n");
-    if (!collectionTreeRow.isCollection()) {
-      dump("ZutiloRE: Not a collection\n");
-      return null;
-    }
+    if (!collectionTreeRow || !collectionTreeRow.isCollection()) return null;
 
-    var collection = collectionTreeRow.getObject();
-    dump("ZutiloRE: Got collection: " + collection + "\n");
-    return collection;
+    // Zotero 8 uses .ref property instead of getObject()
+    return collectionTreeRow.ref || collectionTreeRow.collection || null;
   },
 
   copyToClipboard: function(text) {
     var clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
       .getService(Components.interfaces.nsIClipboardHelper);
     clipboard.copyString(text);
+  },
+
+  pasteFromClipboard: function() {
+    try {
+      var clipboard = Components.classes["@mozilla.org/widget/clipboard;1"]
+        .getService(Components.interfaces.nsIClipboard);
+      var trans = Components.classes["@mozilla.org/widget/transferable;1"]
+        .createInstance(Components.interfaces.nsITransferable);
+
+      trans.addDataFlavor("text/unicode");
+      clipboard.getData(trans, Components.interfaces.nsIClipboard.kGlobalClipboard);
+
+      var str = {};
+      try {
+        trans.getTransferData("text/unicode", str);
+        return str.value.QueryInterface(Components.interfaces.nsISupportsString).data;
+      } catch (e) {
+        return "";
+      }
+    } catch (e) {
+      return "";
+    }
   },
 
   showNotification: function(title, message) {
