@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+  <Description RDF:about="urn:mozilla:install-manifest">
+    <em:id>zutilore@altairwei.github.io</em:id>
+    <em:name>ZutiloRE</em:name>
+    <em:version>1.0.0</em:version>
+    <em:description>Zotero utility plugin for enhanced item management</em:description>
+    <em:creator>Karu</em:creator>
+    <em:homepageURL>https://github.com/altairwei/ZutiloRE</em:homepageURL>
+    <em:bootstrap>true</em:bootstrap>
+    <em:type>2</em:type>
+    <em:unpack>true</em:unpack>
+    <em:strictCompatibility>true</em:strictCompatibility>
+    <em:targetApplication>
+      <Description>
+        <em:id>zotero@chnm.gmu.edu</em:id>
+        <em:minVersion>7.0</em:minVersion>
+        <em:maxVersion>8.*</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+  </Description>
+</RDF>

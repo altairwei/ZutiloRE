@@ -1,9 +1,9 @@
 {
   "manifest_version": 2,
-  "name": "ZutiloRE - Zotero Utility Reloaded",
+  "name": "ZutiloRE",
   "version": "1.0.0",
-  "description": "A Zotero 8 compatible utility plugin providing enhanced item management, tag operations, attachment handling, and keyboard shortcuts.",
-  "author": "ZutiloRE Contributors",
+  "description": "Zotero utility plugin for enhanced item management",
+  "author": "Karu",
   "homepage_url": "https://github.com/altairwei/ZutiloRE",
   "icons": {
     "48": "icon.png",
@@ -12,9 +12,11 @@
   "applications": {
     "zotero": {
       "id": "zutilore@altairwei.github.io",
-      "update_url": "https://raw.githubusercontent.com/altairwei/ZutiloRE/main/updates.json",
       "strict_min_version": "7.0",
-      "strict_max_version": "8.0.*"
+      "strict_max_version": "8.*"
     }
+  },
+  "legacy": {
+    "type": "bootstrap"
   }
 }
