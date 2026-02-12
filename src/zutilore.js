@@ -378,7 +378,6 @@ var zutiloRE = {
     this.copyToClipboard(clipboardText);
     this.showNotification("URIs Copied", "Copied " + uris.length + " Zotero URI(s)");
   },
-  },
 
   copyToClipboard: function(text) {
     var clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
