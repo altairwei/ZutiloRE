@@ -9,9 +9,6 @@ var zutiloRE = {
 
   log: function(msg) {
     dump("ZutiloRE: " + msg + "\n");
-    if (typeof Zotero !== 'undefined' && Zotero.debug) {
-      Zotero.debug("ZutiloRE: " + msg);
-    }
   },
 
   config: {
@@ -94,7 +91,6 @@ var zutiloRE = {
 
     var items = [
       { id: "zutilore-copy-tags", label: "Copy Tags to Clipboard" },
-      { id: "zutilore-paste-tags", label: "Paste Tags from Clipboard" },
       { id: "zutilore-remove-tags", label: "Remove All Tags" },
       { id: "zutilore-relate-items", label: "Relate Items" }
     ];
@@ -104,7 +100,9 @@ var zutiloRE = {
       var menuitem = doc.createXULElement("menuitem");
       menuitem.id = item.id;
       menuitem.setAttribute("label", item.label);
-      menuitem.setAttribute("oncommand", "Zotero.zutiloRE.handleMenuCommand('" + item.id + "')");
+      menuitem.addEventListener("command", function() {
+        self.handleMenuCommand(item.id);
+      });
       itemMenu.appendChild(menuitem);
     });
   },
@@ -121,56 +119,36 @@ var zutiloRE = {
     separator.id = "zutilore-collectionmenu-separator";
     collectionMenu.appendChild(separator);
 
+    var self = this;
     var menuitem = doc.createXULElement("menuitem");
     menuitem.id = "zutilore-copy-collection-link";
     menuitem.setAttribute("label", "Copy Collection Link");
-    menuitem.setAttribute("oncommand", "Zotero.zutiloRE.handleMenuCommand('zutilore-copy-collection-link')");
+    menuitem.addEventListener("command", function() {
+      self.handleMenuCommand("zutilore-copy-collection-link");
+    });
     collectionMenu.appendChild(menuitem);
   },
 
   handleMenuCommand: function(commandId) {
-    dump("ZutiloRE: handleMenuCommand called: " + commandId + "\n");
-    var self = this;
     switch (commandId) {
       case "zutilore-copy-tags":
-        dump("ZutiloRE: Executing copyTags\n");
         this.copyTags();
         break;
-      case "zutilore-paste-tags":
-        dump("ZutiloRE: Executing pasteTags\n");
-        this.pasteTags().catch(function(e) {
-          dump("ZutiloRE: Error in pasteTags: " + e + "\n");
-        });
-        break;
       case "zutilore-remove-tags":
-        dump("ZutiloRE: Executing removeTags\n");
-        this.removeTags().catch(function(e) {
-          dump("ZutiloRE: Error in removeTags: " + e + "\n");
-        });
+        this.removeTags();
         break;
       case "zutilore-relate-items":
-        dump("ZutiloRE: Executing relateItems\n");
-        this.relateItems().catch(function(e) {
-          dump("ZutiloRE: Error in relateItems: " + e + "\n");
-        });
+        this.relateItems();
         break;
       case "zutilore-copy-collection-link":
-        dump("ZutiloRE: Executing copyCollectionLink\n");
         this.copyCollectionLink();
         break;
-      default:
-        dump("ZutiloRE: Unknown command: " + commandId + "\n");
     }
   },
 
   copyTags: function() {
-    dump("ZutiloRE: copyTags() started\n");
     var items = this.getSelectedItems();
-    dump("ZutiloRE: Selected items: " + items.length + "\n");
-    if (!items.length) {
-      dump("ZutiloRE: No items selected\n");
-      return;
-    }
+    if (!items.length) return;
 
     var allTags = new Set();
     items.forEach(function(item) {
@@ -181,55 +159,8 @@ var zutiloRE = {
     });
 
     var tagString = Array.from(allTags).join("\n");
-    dump("ZutiloRE: Copying tags: " + tagString + "\n");
     this.copyToClipboard(tagString);
     this.showNotification("Tags Copied", "Copied " + allTags.size + " unique tags");
-    dump("ZutiloRE: copyTags() completed\n");
-  },
-
-  pasteTags: async function() {
-    this.log("pasteTags() started");
-    
-    var tagString = this.pasteFromClipboard();
-    this.log("Pasted from clipboard: '" + tagString + "'");
-    
-    if (!tagString || !tagString.trim()) {
-      this.log("Clipboard empty, showing error");
-      this.showNotification("Error", "Clipboard is empty or no text found");
-      return;
-    }
-
-    var tags = tagString.split(/[\n,;]/).map(function(t) {
-      return t.trim();
-    }).filter(function(t) {
-      return t;
-    });
-
-    this.log("Parsed tags: " + tags.join(", "));
-
-    if (tags.length === 0) {
-      this.showNotification("Error", "No valid tags found in clipboard");
-      return;
-    }
-
-    var items = this.getSelectedItems();
-    this.log("Selected items: " + items.length);
-    
-    if (!items.length) {
-      this.showNotification("Error", "No items selected");
-      return;
-    }
-
-    this.log("Starting to add tags...");
-    for (var i = 0; i < items.length; i++) {
-      for (var j = 0; j < tags.length; j++) {
-        items[i].addTag(tags[j]);
-      }
-      await items[i].saveTx();
-    }
-
-    this.showNotification("Tags Pasted", "Added " + tags.length + " tags to " + items.length + " items");
-    this.log("pasteTags() completed");
   },
 
   removeTags: async function() {
@@ -306,32 +237,6 @@ var zutiloRE = {
     clipboard.copyString(text);
   },
 
-  pasteFromClipboard: function() {
-    try {
-      var clipboard = Components.classes["@mozilla.org/widget/clipboard;1"]
-        .getService(Components.interfaces.nsIClipboard);
-      var trans = Components.classes["@mozilla.org/widget/transferable;1"]
-        .createInstance(Components.interfaces.nsITransferable);
-
-      trans.addDataFlavor("text/unicode");
-      clipboard.getData(trans, Components.interfaces.nsIClipboard.kGlobalClipboard);
-
-      var str = {};
-      var strLen = {};
-      trans.getTransferData("text/unicode", str, strLen);
-      
-      if (str.value) {
-        var result = str.value.QueryInterface(Components.interfaces.nsISupportsString).data;
-        this.log("Clipboard content: '" + result + "'");
-        return result;
-      }
-      return "";
-    } catch (e) {
-      this.log("Error reading clipboard: " + e);
-      return "";
-    }
-  },
-
   showNotification: function(title, message) {
     try {
       var alertsService = Components.classes["@mozilla.org/alerts-service;1"]
@@ -348,8 +253,3 @@ var zutiloRE = {
     this.windows.clear();
   }
 };
-
-// Expose zutiloRE to global scope for XUL oncommand access
-if (typeof Zotero !== 'undefined') {
-  Zotero.zutiloRE = zutiloRE;
-}

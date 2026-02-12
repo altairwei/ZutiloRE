@@ -5,28 +5,22 @@
 var chromeHandle;
 var zutiloRE;
 
-function log(msg) {
-  if (typeof Zotero !== 'undefined' && Zotero.debug) {
-    Zotero.debug("ZutiloRE: " + msg);
-  }
-}
-
 function install(data, reason) {
-  log("install() called");
+  dump("ZutiloRE: install() called\n");
 }
 
 async function startup({ id, version, resourceURI, rootURI }, reason) {
-  log("startup() called");
+  dump("ZutiloRE: startup() called\n");
   
   try {
     await Zotero.initializationPromise;
-    log("Zotero initialized");
+    dump("ZutiloRE: Zotero initialized\n");
 
     if (!rootURI) {
       rootURI = resourceURI.spec;
     }
 
-    log("Using global Services");
+    dump("ZutiloRE: Using global Services\n");
 
     var aomStartup = Components.classes[
       "@mozilla.org/addons/addon-manager-startup;1"
@@ -39,7 +33,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
       ["locale", "zutilore", "en-US", rootURI + "locale/en-US/"]
     ]);
     
-    log("Chrome registered");
+    dump("ZutiloRE: Chrome registered\n");
 
     var ctx = {
       rootURI: rootURI,
@@ -50,20 +44,20 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     
     ctx._globalThis = ctx;
 
-    log("Loading main script...");
+    dump("ZutiloRE: Loading main script...\n");
     Services.scriptloader.loadSubScript(
       rootURI + "src/zutilore.js",
       ctx
     );
     
-    log("Main script loaded");
+    dump("ZutiloRE: Main script loaded\n");
 
     if (typeof ctx.zutiloRE !== 'undefined' && ctx.zutiloRE.init) {
       zutiloRE = ctx.zutiloRE;
       await zutiloRE.init();
-      log("Initialized successfully");
+      dump("ZutiloRE: Initialized successfully\n");
     } else {
-      log("ERROR - zutiloRE not found");
+      dump("ZutiloRE: ERROR - zutiloRE not found\n");
     }
     
     for (var i = 0; i < Zotero.getMainWindows().length; i++) {
@@ -71,14 +65,14 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     }
     
   } catch (e) {
-    log("ERROR in startup: " + e);
-    log("Stack: " + (e.stack || "no stack"));
+    dump("ZutiloRE: ERROR in startup: " + e + "\n");
+    dump("ZutiloRE: Stack: " + (e.stack || "no stack") + "\n");
     throw e;
   }
 }
 
 async function onMainWindowLoad({ window }, reason) {
-  log("onMainWindowLoad() called");
+  dump("ZutiloRE: onMainWindowLoad() called\n");
   
   try {
     if (window.document.readyState === "complete") {
@@ -93,23 +87,23 @@ async function onMainWindowLoad({ window }, reason) {
       });
     }
     
-    log("Window ready");
+    dump("ZutiloRE: Window ready\n");
 
     if (zutiloRE && zutiloRE.registerMenus) {
       zutiloRE.registerMenus(window);
-      log("Menus registered");
+      dump("ZutiloRE: Menus registered\n");
     }
   } catch (e) {
-    log("ERROR in onMainWindowLoad: " + e);
+    dump("ZutiloRE: ERROR in onMainWindowLoad: " + e + "\n");
   }
 }
 
 async function onMainWindowUnload({ window }, reason) {
-  log("onMainWindowUnload() called");
+  dump("ZutiloRE: onMainWindowUnload() called\n");
 }
 
 function shutdown({ id, version, resourceURI, rootURI }, reason) {
-  log("shutdown() called, reason=" + reason);
+  dump("ZutiloRE: shutdown() called, reason=" + reason + "\n");
   
   if (reason === APP_SHUTDOWN) {
     return;
@@ -129,12 +123,12 @@ function shutdown({ id, version, resourceURI, rootURI }, reason) {
       chromeHandle = null;
     }
     
-    log("Shutdown complete");
+    dump("ZutiloRE: Shutdown complete\n");
   } catch (e) {
-    log("ERROR in shutdown: " + e);
+    dump("ZutiloRE: ERROR in shutdown: " + e + "\n");
   }
 }
 
 function uninstall(data, reason) {
-  log("uninstall() called");
+  dump("ZutiloRE: uninstall() called\n");
 }
