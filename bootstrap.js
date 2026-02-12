@@ -1,136 +1,97 @@
 /**
  * ZutiloRE - bootstrap.js
- * Zotero 8 compatible bootstrap entry point
+ * Based on Zotero's Make It Red example and zotero-pdf-translate best practices
  */
 
-// Use dump for logging (console is not available in bootstrap scope)
-function log(msg) {
-    dump("ZutiloRE: " + msg + "\n");
+var chromeHandle;
+
+function install(data, reason) {}
+
+async function startup({ id, version, resourceURI, rootURI }, reason) {
+  // Wait for Zotero to be fully initialized
+  await Zotero.initializationPromise;
+
+  // String 'rootURI' introduced in Zotero 7
+  if (!rootURI) {
+    rootURI = resourceURI.spec;
+  }
+
+  // Register chrome
+  var aomStartup = Components.classes[
+    "@mozilla.org/addons/addon-manager-startup;1"
+  ].getService(Components.interfaces.amIAddonManagerStartup);
+  var manifestURI = Services.io.newURI(rootURI + "manifest.json");
+  chromeHandle = aomStartup.registerChrome(manifestURI, [
+    ["content", "zutilore", rootURI + "chrome/content/"],
+    ["locale", "zutilore", "en-US", rootURI + "locale/en-US/"],
+  ]);
+
+  // Create context for loading scripts
+  const ctx = {
+    rootURI,
+    Zotero,
+    Services,
+    Components,
+    ChromeUtils,
+  };
+  ctx._globalThis = ctx;
+
+  // Load main script
+  Services.scriptloader.loadSubScript(
+    rootURI + "src/zutilore.js",
+    ctx,
+  );
+
+  // Initialize
+  if (typeof zutiloRE !== 'undefined' && zutiloRE.init) {
+    await zutiloRE.init();
+  }
 }
 
-// Import Services - try different methods for compatibility
-let Services;
-try {
-    // Try ChromeUtils.importESModule (Zotero 8 / Firefox 115)
-    ({ Services } = ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs"));
-} catch (e) {
-    try {
-        // Fallback to ChromeUtils.import (older versions)
-        ({ Services } = ChromeUtils.import("resource://gre/modules/Services.jsm"));
-    } catch (e2) {
-        // Last resort: use global Services if available
-        if (typeof window !== 'undefined' && window.Services) {
-            Services = window.Services;
-        } else if (typeof globalThis.Services !== 'undefined') {
-            Services = globalThis.Services;
-        } else {
-            log("ERROR: Could not import Services");
-            throw new Error("Services not available");
+async function onMainWindowLoad({ window }, reason) {
+  // Wait for window to be ready
+  await new Promise((resolve) => {
+    if (window.document.readyState === "complete") {
+      resolve();
+    } else {
+      window.document.addEventListener("readystatechange", () => {
+        if (window.document.readyState === "complete") {
+          resolve();
         }
+      });
     }
+  });
+
+  // Register menu items when window is ready
+  if (typeof zutiloRE !== 'undefined' && zutiloRE.registerMenus) {
+    zutiloRE.registerMenus(window);
+  }
 }
 
-// Global state
-let chromeHandle = null;
-let zutiloRE = null;
-
-/**
- * Plugin lifecycle: startup
- */
-function startup({ id, version, rootURI }, reason) {
-    log("Starting up...");
-    
-    try {
-        // Register chrome URLs
-        const aomStartup = Cc["@mozilla.org/addons/addon-manager-startup;1"]
-            .getService(Ci.amIAddonManagerStartup);
-        const manifestURI = Services.io.newURI(rootURI + "install.rdf");
-        chromeHandle = aomStartup.registerChrome(manifestURI, [
-            ["content", "zutilore", "chrome/content/"],
-            ["locale", "zutilore", "en-US", "locale/en-US/"]
-        ]);
-        
-        // Initialize when Zotero is ready
-        if (typeof Zotero !== 'undefined' && Zotero.initialized) {
-            initZutiloRE(rootURI);
-        } else {
-            // Wait for Zotero initialization
-            const observer = {
-                observe: function(subject, topic, data) {
-                    if (topic === 'final-ui-startup') {
-                        Services.obs.removeObserver(observer, 'final-ui-startup');
-                        initZutiloRE(rootURI);
-                    }
-                }
-            };
-            Services.obs.addObserver(observer, 'final-ui-startup');
-        }
-        
-        log("Startup complete");
-    } catch (e) {
-        log("ERROR in startup: " + e);
-    }
+async function onMainWindowUnload({ window }, reason) {
+  // Cleanup menus if needed
 }
 
-/**
- * Initialize ZutiloRE
- */
-async function initZutiloRE(rootURI) {
-    try {
-        log("Initializing...");
-        
-        // Load main module
-        const scriptPath = rootURI + 'src/zutilore.js';
-        Services.scriptloader.loadSubScript(scriptPath, {
-            Zotero,
-            Services,
-            rootURI,
-            ChromeUtils
-        });
-        
-        // Initialize if global zutiloRE was set by the script
-        if (typeof zutiloRE !== 'undefined' && zutiloRE.init) {
-            await zutiloRE.init();
-        }
-        
-        log("Initialized successfully");
-    } catch (e) {
-        log("ERROR: Initialization failed - " + e);
-    }
+function shutdown({ id, version, resourceURI, rootURI }, reason) {
+  if (reason === APP_SHUTDOWN) {
+    return;
+  }
+
+  // Cleanup
+  if (typeof zutiloRE !== 'undefined' && zutiloRE.destroy) {
+    zutiloRE.destroy();
+  }
+
+  // Flush string bundles
+  Components.classes["@mozilla.org/intl/stringbundle;1"]
+    .getService(Components.interfaces.nsIStringBundleService)
+    .flushBundles();
+
+  // Deregister chrome
+  if (chromeHandle) {
+    chromeHandle.destruct();
+    chromeHandle = null;
+  }
 }
 
-/**
- * Plugin lifecycle: shutdown
- */
-function shutdown({ id, version, rootURI }, reason) {
-    log("Shutting down...");
-    
-    if (reason === APP_SHUTDOWN) return;
-    
-    // Cleanup
-    if (zutiloRE && zutiloRE.destroy) {
-        zutiloRE.destroy();
-    }
-    
-    // Deregister chrome
-    if (chromeHandle) {
-        chromeHandle.destruct();
-        chromeHandle = null;
-    }
-    
-    zutiloRE = null;
-}
-
-/**
- * Plugin lifecycle: install
- */
-function install({ id, version, rootURI }, reason) {
-    log("Installed");
-}
-
-/**
- * Plugin lifecycle: uninstall
- */
-function uninstall({ id, version, rootURI }, reason) {
-    log("Uninstalled");
-}
+function uninstall(data, reason) {}
