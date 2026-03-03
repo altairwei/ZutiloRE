@@ -454,4 +454,29 @@ var zutiloRE = {
 // Expose to Zotero for oncommand access
 if (typeof Zotero !== 'undefined') {
   Zotero.zutiloRE = zutiloRE;
+
+  // Development helper: expose reload function globally
+  // Usage in Developer Tools console: Zotero.zutiloRE.devReload()
+  zutiloRE.devReload = function() {
+    dump("ZutiloRE: Development reload triggered\n");
+    // Re-load the main script
+    var rootURI = this._rootURI || "chrome://zutilore/content/";
+    var ctx = {
+      Zotero: Zotero,
+      Services: Services,
+      Components: Components
+    };
+    ctx._globalThis = ctx;
+
+    try {
+      // Clear existing modules
+      delete require.cache[require.resolve(rootURI + "src/zutilore.js")];
+      // Re-load main script
+      Services.scriptloader.loadSubScript(rootURI + "src/zutilore.js", ctx);
+      dump("ZutiloRE: Script reloaded\n");
+    } catch (e) {
+      dump("ZutiloRE: Reload error: " + e + "\n");
+    }
+    return "Reload initiated";
+  };
 }

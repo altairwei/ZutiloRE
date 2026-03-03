@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+      xmlns:html="http://www.w3.org/1999/xhtml">
+    
+    <linkset>
+        <html:link rel="localization" href="zutilore.ftl"/>
+    </linkset>
+    
+    <groupbox>
+        <label><html:h2 data-l10n-id="zutilore-prefs-general"/></label>
+        
+        <vbox>
+            <checkbox preference="extensions.zutilore.showItemMenu"
+                      data-l10n-id="zutilore-prefs-show-item-menu"/>
+            <checkbox preference="extensions.zutilore.showCollectionMenu"
+                      data-l10n-id="zutilore-prefs-show-collection-menu"/>
+        </vbox>
+    </groupbox>
+    
+    <groupbox>
+        <label><html:h2 data-l10n-id="zutilore-prefs-quickcopy"/></label>
+        
+        <vbox>
+            <label data-l10n-id="zutilore-prefs-quickcopy-alt1"/>
+            <menulist preference="extensions.zutilore.quickcopy.alt1">
+                <menupopup id="zutilore-quickcopy-alt1-menupopup"/>
+            </menulist>
+            
+            <label data-l10n-id="zutilore-prefs-quickcopy-alt2"/>
+            <menulist preference="extensions.zutilore.quickcopy.alt2">
+                <menupopup id="zutilore-quickcopy-alt2-menupopup"/>
+            </menulist>
+        </vbox>
+    </groupbox>
+    
+    <groupbox>
+        <label><html:h2 data-l10n-id="zutilore-prefs-shortcuts"/></label>
+        
+        <vbox id="zutilore-shortcuts-container">
+            <!-- Shortcuts will be populated by JS -->
+        </vbox>
+    </groupbox>
+    
+</vbox>
