@@ -1,6 +1,8 @@
 # ZutiloRE Build Artifacts
 *.xpi
 *.zip
+dist/
+.scaffold/build/
 
 # macOS
 .DS_Store

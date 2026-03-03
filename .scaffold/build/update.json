@@ -1,0 +1,8 @@
+{
+  "addons": {
+    "zutilore@altairwei.github.io": {
+      "version": "1.0.0",
+      "updateInfoURL": "https://raw.githubusercontent.com/altairwei/ZutiloRE/main/updates.json"
+    }
+  }
+}
