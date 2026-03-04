@@ -15,6 +15,7 @@ dist/
 
 # Logs
 *.log
+logs/
 
 # Dependencies
 node_modules/

@@ -1,16 +1,12 @@
 import * as esbuild from 'esbuild';
 import fs from 'fs';
 import path from 'path';
-
-const isWatch = process.argv.includes('--watch');
+import { fileURLToPath } from 'url';
 
 // Output directory
 const DIST_DIR = 'dist';
-if (!fs.existsSync(DIST_DIR)) {
-  fs.mkdirSync(DIST_DIR, { recursive: true });
-}
 
-// Build configuration
+// Build configuration (defaults to production; dev.mjs overrides for development)
 const buildOptions = {
   entryPoints: ['src/index.ts'],
   bundle: true,
@@ -20,9 +16,9 @@ const buildOptions = {
   platform: 'browser',
   globalName: 'zutiloRE',
   sourcemap: true,
-  minify: !isWatch,
+  minify: true,
   define: {
-    'process.env.NODE_ENV': isWatch ? '"development"' : '"production"',
+    'process.env.NODE_ENV': '"production"',
   },
   external: [],
   logLevel: 'info',
@@ -85,15 +81,13 @@ function copyDirContents(src, dest) {
 }
 
 async function build() {
-  try {
-    console.log('\n>>> Building...');
-    await esbuild.build(buildOptions);
-    copyAddonFiles();
-    console.log('>>> Build complete!\n');
-  } catch (error) {
-    console.error('Build failed:', error);
-    process.exit(1);
+  if (!fs.existsSync(DIST_DIR)) {
+    fs.mkdirSync(DIST_DIR, { recursive: true });
   }
+  console.log('\n>>> Building...');
+  await esbuild.build(buildOptions);
+  copyAddonFiles();
+  console.log('>>> Build complete!\n');
 }
 
 // File watcher
@@ -107,7 +101,7 @@ function watchFiles() {
     }
   }
 
-  console.log('👀 Watching for changes...');
+  console.log('Watching for changes...');
   console.log('   Edit files in src/, addon/, icons/');
   console.log('   Changes will auto-rebuild\n');
 
@@ -168,8 +162,31 @@ function checkDir(dir, mtimes) {
   return changed;
 }
 
-if (isWatch) {
-  watchFiles();
-} else {
-  build();
+// Exports for use by scripts/dev.mjs
+export { buildOptions, build, copyAddonFiles, copyDirContents, DIST_DIR };
+
+// CLI entry point - only runs when executed directly
+const __filename_build = fileURLToPath(import.meta.url);
+const isMain = path.resolve(process.argv[1] || '') === path.resolve(__filename_build);
+
+if (isMain) {
+  const isWatch = process.argv.includes('--watch');
+
+  // Override for watch mode
+  if (isWatch) {
+    buildOptions.minify = false;
+    buildOptions.define['process.env.NODE_ENV'] = '"development"';
+  }
+
+  try {
+    if (isWatch) {
+      await build();
+      watchFiles();
+    } else {
+      await build();
+    }
+  } catch (error) {
+    console.error('Build failed:', error);
+    process.exit(1);
+  }
 }

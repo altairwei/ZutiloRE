@@ -63,6 +63,9 @@ async function addDirectoryToZip(zip, dir, baseDir) {
   const entries = await readdir(dir, { withFileTypes: true });
 
   for (const entry of entries) {
+    // Skip dev-only reload trigger file
+    if (entry.name === '.reload-trigger') continue;
+
     const fullPath = join(dir, entry.name);
     // Preserve directory structure relative to dist/
     const zipPath = baseDir ? join(baseDir, entry.name) : entry.name;
