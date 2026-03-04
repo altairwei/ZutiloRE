@@ -183,6 +183,37 @@ function installProxyFile(profileDir) {
     fs.unlinkSync(oldJson);
   }
 
+  // Remove staged uninstall marker left by Zotero when user uninstalls
+  // from the UI. If this directory exists, Zotero will process the pending
+  // uninstall on startup and undo everything we set up here.
+  const stagedDir = path.join(extDir, 'staged', ADDON_ID);
+  if (fs.existsSync(stagedDir)) {
+    fs.rmSync(stagedDir, { recursive: true, force: true });
+    log('dev', 'Removed staged uninstall directory');
+    // Remove the staged parent dir if it is now empty
+    const stagedParent = path.join(extDir, 'staged');
+    try {
+      const remaining = fs.readdirSync(stagedParent);
+      if (remaining.length === 0) fs.rmdirSync(stagedParent);
+    } catch { /* ignore */ }
+  }
+
+  // Delete addonStartup.json.lz4 — Zotero's fast-startup cache.
+  // If the addon was uninstalled, this cache will not contain our entry and
+  // Zotero will skip the proxy file entirely. Removing it forces a full
+  // rescan of the extensions directory on next launch.
+  const startupCache = path.join(profileDir, 'addonStartup.json.lz4');
+  if (fs.existsSync(startupCache)) {
+    fs.unlinkSync(startupCache);
+    log('dev', 'Removed addonStartup.json.lz4 (will be rebuilt on launch)');
+  }
+
+  // Ensure sideloaded addons (proxy files) are not auto-disabled.
+  // Zotero inherits Firefox's extensions.autoDisableScopes which disables
+  // newly discovered sideloaded addons by default. Writing to user.js
+  // guarantees the pref is applied every startup without being overwritten.
+  ensureDevPrefs(profileDir);
+
   // Write proxy file: a text file containing the path to dist/
   fs.writeFileSync(proxyFile, distAbsPath + '\n', 'utf-8');
 
@@ -191,6 +222,28 @@ function installProxyFile(profileDir) {
 
   // Patch extensions.json so Zotero loads from the directory, not a stale XPI path
   patchExtensionsJson(profileDir, distAbsPath);
+}
+
+function ensureDevPrefs(profileDir) {
+  const userJsPath = path.join(profileDir, 'user.js');
+  const prefLine = 'user_pref("extensions.autoDisableScopes", 0);';
+
+  let content = '';
+  if (fs.existsSync(userJsPath)) {
+    content = fs.readFileSync(userJsPath, 'utf-8');
+    if (content.includes('extensions.autoDisableScopes')) return;
+  }
+
+  const lines = [
+    content.trimEnd(),
+    '',
+    '// Added by ZutiloRE dev script — prevent auto-disabling sideloaded addons',
+    prefLine,
+    '',
+  ].filter((line, i) => i > 0 || line !== '');  // drop leading blank if file was empty
+
+  fs.writeFileSync(userJsPath, lines.join('\n'), 'utf-8');
+  log('dev', 'Set extensions.autoDisableScopes=0 in user.js');
 }
 
 function patchExtensionsJson(profileDir, distAbsPath) {
@@ -207,17 +260,50 @@ function patchExtensionsJson(profileDir, distAbsPath) {
   const addons = data.addons;
   if (!Array.isArray(addons)) return;
 
-  const idx = addons.findIndex(a => a.id === ADDON_ID);
-  if (idx === -1) return;
-
   // Build a file:// rootURI pointing to distAbsPath (with trailing slash)
   const rootURI = 'file://' + distAbsPath.replace(/ /g, '%20') + '/';
 
-  addons[idx].path = distAbsPath;
-  addons[idx].rootURI = rootURI;
+  const idx = addons.findIndex(a => a.id === ADDON_ID);
+  if (idx === -1) {
+    // Addon entry was removed (e.g. user uninstalled from Zotero UI).
+    // Re-create the entry so Zotero recognises the proxy file on next startup.
+    addons.push({
+      id: ADDON_ID,
+      location: 'app-profile',
+      version: '1.0.0',
+      type: 'extension',
+      loader: null,
+      updateURL: null,
+      optionsURL: null,
+      aboutURL: null,
+      defaultLocale: { name: 'ZutiloRE', description: 'Zutilo Reloaded - Zotero Utility Plugin' },
+      visible: true,
+      active: true,
+      userDisabled: false,
+      appDisabled: false,
+      installDate: Date.now(),
+      updateDate: Date.now(),
+      applyBackgroundUpdates: 1,
+      path: distAbsPath,
+      rootURI: rootURI,
+      softDisabled: false,
+      foreignInstall: false,
+      seen: true,
+      startupData: null,
+    });
+    log('dev', `Added addon entry to extensions.json (was missing after uninstall)`);
+  } else {
+    addons[idx].path = distAbsPath;
+    addons[idx].rootURI = rootURI;
+    // Reset any disabled/uninstalled flags that Zotero may have set
+    addons[idx].active = true;
+    addons[idx].userDisabled = false;
+    addons[idx].appDisabled = false;
+    addons[idx].visible = true;
+    log('dev', `Patched extensions.json: rootURI -> ${rootURI}`);
+  }
 
   fs.writeFileSync(extJsonPath, JSON.stringify(data, null, 2), 'utf-8');
-  log('dev', `Patched extensions.json: rootURI -> ${rootURI}`);
 }
 
 // ----- Zotero Process -----
