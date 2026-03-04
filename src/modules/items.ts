@@ -165,3 +165,60 @@ export function copyZoteroItemURI(): void {
   copyToClipboard(uris.join('\r\n'));
   showNotification('URIs Copied', `Copied ${uris.length} Zotero URI(s)`);
 }
+
+/**
+ * Get all attachments from selected items
+ * Includes both file attachments and URL attachments
+ */
+function getSelectedAttachments(): ZoteroItem[] {
+  const items = getSelectedItems();
+  const attachments: ZoteroItem[] = [];
+
+  for (const item of items) {
+    // Get child attachments
+    const children = item.getAttachments();
+    if (children && children.length > 0) {
+      for (const childID of children) {
+        const child = Zotero.Items.get(childID);
+        if (child && child.isAttachment()) {
+          attachments.push(child);
+        }
+      }
+    }
+    // Also check if the item itself is an attachment
+    if (item.isAttachment()) {
+      attachments.push(item);
+    }
+  }
+
+  return attachments;
+}
+
+/**
+ * Copy attachment file paths to clipboard
+ */
+export function copyAttachmentPaths(): void {
+  const attachments = getSelectedAttachments();
+
+  if (!attachments.length) {
+    showNotification('Error', 'No attachments found in selected items');
+    return;
+  }
+
+  const paths: string[] = [];
+  for (const attachment of attachments) {
+    // Get file path for file attachments
+    const filePath = attachment.getFilePath();
+    if (filePath) {
+      paths.push(filePath);
+    }
+  }
+
+  if (paths.length === 0) {
+    showNotification('Error', 'No file paths found for attachments');
+    return;
+  }
+
+  copyToClipboard(paths.join('\r\n'));
+  showNotification('Paths Copied', `Copied ${paths.length} attachment path(s)`);
+}
