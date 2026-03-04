@@ -254,3 +254,56 @@ export function copyCreators(): void {
   copyToClipboard(creatorText);
   showNotification('Creators Copied', `Copied ${creatorsSet.size} creator(s)`);
 }
+
+// Internal clipboard for child items (used by copyChildIDs and relocateChildren)
+let childClipboard: number[] = [];
+
+/**
+ * Get child clipboard for use by other functions
+ */
+export function getChildClipboard(): number[] {
+  return childClipboard;
+}
+
+/**
+ * Copy child item IDs (notes, attachments) to clipboard
+ */
+export function copyChildIDs(): void {
+  const items = getSelectedItems();
+
+  if (!items.length) {
+    showNotification('Error', 'No items selected');
+    return;
+  }
+
+  childClipboard = [];
+  const allIDs: string[] = [];
+
+  for (const item of items) {
+    // Get child notes
+    const notes = item.getNotes ? item.getNotes() : [];
+    for (const noteID of notes) {
+      if (!childClipboard.includes(noteID)) {
+        childClipboard.push(noteID);
+        allIDs.push(noteID.toString());
+      }
+    }
+
+    // Get child attachments
+    const attachments = item.getAttachments ? item.getAttachments() : [];
+    for (const attID of attachments) {
+      if (!childClipboard.includes(attID)) {
+        childClipboard.push(attID);
+        allIDs.push(attID.toString());
+      }
+    }
+  }
+
+  if (allIDs.length === 0) {
+    showNotification('Error', 'No child items (notes/attachments) found');
+    return;
+  }
+
+  copyToClipboard(allIDs.join('\r\n'));
+  showNotification('Child IDs Copied', `Copied ${allIDs.length} child item ID(s)`);
+}
