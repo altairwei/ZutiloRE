@@ -1,14 +1,14 @@
 /**
  * ZutiloRE - Main Entry Point
  * Zotero 7/8 Utility Plugin
+ *
+ * Note: This plugin focuses on unique features not available in original Zutilo.
+ * For full Zutilo functionality, please use the original Zutilo plugin.
  */
 
 import { onStartup, onShutdown } from './hooks';
 import { registerMenus } from './modules/main';
-import { copyTags, pasteTags, removeTags } from './modules/tags';
-import { relateItems, copyZoteroSelectLink, copyZoteroItemID, copyZoteroItemURI, copyAttachmentPaths, copyCreators, copyChildIDs, relocateChildren } from './modules/items';
-import { copyCollectionLink, copyCollectionPath } from './modules/collections';
-import { createBookFromSection, createSectionFromBook } from './modules/creation';
+import { copyCollectionPath } from './modules/collections';
 
 // Export plugin API for Zotero
 const zutiloRE = {
@@ -62,55 +62,12 @@ const zutiloRE = {
 
   /**
    * Handle menu commands
+   * Only unique features not available in original Zutilo
    */
   handleMenuCommand(commandId: string): void {
     switch (commandId) {
-      case 'zutilore-copy-tags':
-        copyTags();
-        break;
-      case 'zutilore-paste-tags':
-        pasteTags();
-        break;
-      case 'zutilore-remove-tags':
-        removeTags();
-        break;
-      case 'zutilore-relate-items':
-        relateItems();
-        break;
-      case 'zutilore-copy-collection-link':
-        copyCollectionLink();
-        break;
       case 'zutilore-copy-collection-path':
         copyCollectionPath();
-        break;
-      case 'zutilore-copy-select-link':
-        copyZoteroSelectLink();
-        break;
-      case 'zutilore-copy-item-id':
-        copyZoteroItemID();
-        break;
-      case 'zutilore-copy-item-uri':
-        copyZoteroItemURI();
-        break;
-      case 'zutilore-copy-attachment-paths':
-        copyAttachmentPaths();
-        break;
-      case 'zutilore-copy-creators':
-        copyCreators();
-        break;
-      case 'zutilore-copy-child-ids':
-        copyChildIDs();
-        break;
-      case 'zutilore-relocate-children':
-        relocateChildren();
-        break;
-        copyZoteroItemURI();
-        break;
-      case 'zutilore-create-book-from-section':
-        createBookFromSection();
-        break;
-      case 'zutilore-create-section-from-book':
-        createSectionFromBook();
         break;
     }
   },

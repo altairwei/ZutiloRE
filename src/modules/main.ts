@@ -132,19 +132,10 @@ function addItemMenuItems(itemMenu: Element): void {
   separator.id = 'zutilore-itemmenu-separator';
   itemMenu.appendChild(separator);
 
-  // Menu items
+  // Menu items - ZutiloRE unique features only
+  // (Other Zutilo features are available in original Zutilo)
   const items = [
-    { id: 'zutilore-copy-tags', label: 'Copy Tags to Clipboard' },
-    { id: 'zutilore-paste-tags', label: 'Paste Tags from Clipboard' },
-    { id: 'zutilore-remove-tags', label: 'Remove All Tags' },
-    { id: 'zutilore-relate-items', label: 'Relate Items' },
-    { id: 'zutilore-copy-select-link', label: 'Copy Select Link' },
-    { id: 'zutilore-copy-item-id', label: 'Copy Item ID' },
-    { id: 'zutilore-copy-item-uri', label: 'Copy Zotero URI' },
-    { id: 'zutilore-copy-attachment-paths', label: 'Copy Attachment Paths' },
-    { id: 'zutilore-copy-creators', label: 'Copy Creators' },
-    { id: 'zutilore-copy-child-ids', label: 'Copy Child Items' },
-    { id: 'zutilore-relocate-children', label: 'Relocate Child Items' },
+    { id: 'zutilore-copy-collection-path', label: 'Copy Collection Path' },
   ];
 
   for (const item of items) {
