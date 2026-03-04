@@ -92,6 +92,8 @@ interface ZoteroCollection {
   id: number;
   key: string;
   libraryID: number;
+  name: string;
+  parentID: number | false;
 }
 
 interface LibrariesConstructor {

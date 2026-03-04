@@ -162,10 +162,17 @@ function addCollectionMenuItems(collectionMenu: Element): void {
   separator.id = 'zutilore-collectionmenu-separator';
   collectionMenu.appendChild(separator);
 
-  // Add menu item
-  const menuitem = doc.createXULElement('menuitem');
-  menuitem.id = 'zutilore-copy-collection-link';
-  menuitem.setAttribute('label', 'Copy Collection Link');
-  menuitem.setAttribute('oncommand', "Zotero.zutiloRE.handleMenuCommand('zutilore-copy-collection-link')");
-  collectionMenu.appendChild(menuitem);
+  // Add menu items
+  const items = [
+    { id: 'zutilore-copy-collection-link', label: 'Copy Collection Link' },
+    { id: 'zutilore-copy-collection-path', label: 'Copy Collection Path' },
+  ];
+
+  for (const item of items) {
+    const menuitem = doc.createXULElement('menuitem');
+    menuitem.id = item.id;
+    menuitem.setAttribute('label', item.label);
+    menuitem.setAttribute('oncommand', `Zotero.zutiloRE.handleMenuCommand('${item.id}')`);
+    collectionMenu.appendChild(menuitem);
+  }
 }
