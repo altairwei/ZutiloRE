@@ -82,26 +82,32 @@ export function showNotification(title: string, message: string): void {
 
 /**
  * Register context menus for items and collections
- * Called directly when window loads (menu elements exist in DOM)
+ * Uses popupshowing event to dynamically add menu items when menus open
+ * This ensures menus are properly added even after hot reload
  */
 export function registerMenus(win: Window): void {
   try {
     const doc = win.document;
     Zotero.debug('ZutiloRE: registerMenus called');
 
-    // Get existing menu elements
+    // Get menu elements
     const itemMenu = doc.getElementById('zotero-itemmenu');
-    Zotero.debug('ZutiloRE: itemMenu found: ' + !!itemMenu);
+    const collectionMenu = doc.getElementById('zotero-collectionmenu');
 
+    // If menus exist, add items immediately
     if (itemMenu) {
       addItemMenuItems(itemMenu);
+      // Also listen for popupshowing to handle dynamic menu creation
+      itemMenu.addEventListener('popupshowing', () => {
+        addItemMenuItems(itemMenu);
+      }, false);
     }
-
-    const collectionMenu = doc.getElementById('zotero-collectionmenu');
-    Zotero.debug('ZutiloRE: collectionMenu found: ' + !!collectionMenu);
 
     if (collectionMenu) {
       addCollectionMenuItems(collectionMenu);
+      collectionMenu.addEventListener('popupshowing', () => {
+        addCollectionMenuItems(collectionMenu);
+      }, false);
     }
 
     Zotero.debug('ZutiloRE: Menus registered');
