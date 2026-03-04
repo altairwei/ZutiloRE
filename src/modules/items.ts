@@ -222,3 +222,35 @@ export function copyAttachmentPaths(): void {
   copyToClipboard(paths.join('\r\n'));
   showNotification('Paths Copied', `Copied ${paths.length} attachment path(s)`);
 }
+
+/**
+ * Copy creators (authors) to clipboard
+ * Format: "lastName\tfirstName" per line, unique values only
+ */
+export function copyCreators(): void {
+  const items = getSelectedItems();
+
+  if (!items.length) {
+    showNotification('Error', 'No items selected');
+    return;
+  }
+
+  const creatorsSet = new Set<string>();
+
+  for (const item of items) {
+    const creators = item.getCreators();
+    for (const creator of creators) {
+      const creatorStr = `${creator.lastName}\t${creator.firstName}`;
+      creatorsSet.add(creatorStr);
+    }
+  }
+
+  if (creatorsSet.size === 0) {
+    showNotification('Error', 'No creators found');
+    return;
+  }
+
+  const creatorText = Array.from(creatorsSet).join('\r\n');
+  copyToClipboard(creatorText);
+  showNotification('Creators Copied', `Copied ${creatorsSet.size} creator(s)`);
+}
