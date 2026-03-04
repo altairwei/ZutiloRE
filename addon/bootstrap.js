@@ -3,7 +3,9 @@
  * Handles plugin initialization for Zotero
  */
 
+var chromeHandle;
 var zutiloRE;
+var _devReloadInterval;
 
 function install(data, reason) {
   Zotero.debug('ZutiloRE: install() called');
@@ -28,7 +30,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
 
     var manifestURI = Services.io.newURI(rootURI + 'manifest.json');
 
-    var chromeHandle = aomStartup.registerChrome(manifestURI, [
+    chromeHandle = aomStartup.registerChrome(manifestURI, [
       ['content', 'zutilore', rootURI + 'chrome/content/'],
       ['locale', 'zutilore', 'en-US', rootURI + 'locale/en-US/']
     ]);
@@ -69,6 +71,11 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     // Register menus in all windows
     for (var i = 0; i < Zotero.getMainWindows().length; i++) {
       await onMainWindowLoad({ window: Zotero.getMainWindows()[i] }, reason);
+    }
+
+    // DEV: Start hot-reload watcher for proxy-file installations
+    if (rootURI && rootURI.indexOf('file://') === 0) {
+      _startDevReloadWatcher(id, rootURI);
     }
 
   } catch (e) {
@@ -117,15 +124,33 @@ function shutdown({ id, version, resourceURI, rootURI }, reason) {
   }
 
   try {
+    // Stop dev reload watcher
+    if (_devReloadInterval) {
+      clearInterval(_devReloadInterval);
+      _devReloadInterval = null;
+    }
+
     // Clean up plugin
     if (zutiloRE && zutiloRE.destroy) {
       zutiloRE.destroy();
+    }
+    zutiloRE = null;
+
+    // Clean up Zotero global reference
+    if (typeof Zotero !== 'undefined' && Zotero.zutiloRE) {
+      delete Zotero.zutiloRE;
     }
 
     // Flush string bundles
     Components.classes['@mozilla.org/intl/stringbundle;1']
       .getService(Components.interfaces.nsIStringBundleService)
       .flushBundles();
+
+    // Destruct chrome handle
+    if (chromeHandle) {
+      chromeHandle.destruct();
+      chromeHandle = null;
+    }
 
     Zotero.debug('ZutiloRE: Shutdown complete');
   } catch (e) {
@@ -135,4 +160,81 @@ function shutdown({ id, version, resourceURI, rootURI }, reason) {
 
 function uninstall(data, reason) {
   Zotero.debug('ZutiloRE: uninstall() called');
+}
+
+/**
+ * DEV: Hot-reload watcher for development with proxy-file installations.
+ * Polls a trigger file written by scripts/dev.mjs after each rebuild.
+ * When the trigger changes, reloads the addon via AddonManager.
+ * Only active when rootURI is file:// (dev proxy installs).
+ * Completely inert for production XPI installs (jar: URIs).
+ */
+function _startDevReloadWatcher(addonId, rootURI) {
+  // Convert file:// URI to local filesystem path
+  var fileHandler = Services.io
+    .getProtocolHandler('file')
+    .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+  var rootDir = fileHandler.getFileFromURLSpec(rootURI);
+  var triggerFile = rootDir.clone();
+  triggerFile.append('.reload-trigger');
+  var triggerPath = triggerFile.path;
+
+  var lastValue = '';
+  var isReloading = false;
+
+  Zotero.debug('ZutiloRE: [dev] Reload watcher started, polling ' + triggerPath);
+
+  _devReloadInterval = setInterval(function() {
+    if (isReloading) return;
+
+    IOUtils.readUTF8(triggerPath).then(
+      function(content) {
+        content = content.trim();
+        if (!content) return;
+
+        if (lastValue === '') {
+          // First successful read: seed the value, do not reload
+          lastValue = content;
+          Zotero.debug('ZutiloRE: [dev] Trigger seeded: ' + content);
+          return;
+        }
+
+        if (content === lastValue) return;
+
+        // Value changed: trigger reload
+        lastValue = content;
+        isReloading = true;
+        Zotero.debug('ZutiloRE: [dev] Trigger changed, reloading addon...');
+
+        // Invalidate startup cache so Zotero reads fresh scripts from disk
+        Services.obs.notifyObservers(null, 'startupcache-invalidate', null);
+
+        // Import AddonManager (try ESModule first, then JSM fallback)
+        var AddonManager;
+        try {
+          AddonManager = ChromeUtils.importESModule(
+            'resource://gre/modules/AddonManager.sys.mjs'
+          ).AddonManager;
+        } catch (e) {
+          AddonManager = ChromeUtils.import(
+            'resource://gre/modules/AddonManager.jsm'
+          ).AddonManager;
+        }
+
+        // Reload via AddonManager
+        AddonManager.getAddonByID(addonId).then(function(addon) {
+          if (addon) {
+            Zotero.debug('ZutiloRE: [dev] Calling addon.reload()');
+            return addon.reload();
+          }
+        }).catch(function(err) {
+          Zotero.debug('ZutiloRE: [dev] Reload error: ' + err);
+          isReloading = false;
+        });
+      },
+      function() {
+        // File does not exist - normal before first build or in production
+      }
+    );
+  }, 1500);
 }
