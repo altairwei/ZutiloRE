@@ -43,6 +43,12 @@ interface ZoteroAPI {
   // Notifier
   Notifier: NotifierAPI;
 
+  // Translate
+  Translate: TranslateAPI;
+
+  // Utilities
+  Utilities: UtilitiesAPI;
+
   // Plugin specific
   zutiloRE?: ZutiloRE;
 
@@ -67,8 +73,15 @@ interface ZoteroItem {
   addTag(tag: string, color?: string): void;
   setTags(tags: string[]): void;
   getCreators(): Creator[];
+  setCreators(creators: Creator[]): void;
   addCreator(creator: Creator): void;
   addRelatedItem(item: ZoteroItem): void;
+  isRegularItem(): boolean;
+  isAttachment(): boolean;
+  isNote(): boolean;
+  getAttachments(): number[];
+  getNotes(): number[];
+  getFilePath(): string | null;
   saveTx(): Promise<number>;
 }
 
@@ -123,6 +136,24 @@ interface PrefsAPI {
 interface NotifierAPI {
   registerObserver(callback: Function, types: string[]): void;
   unregisterObserver(callback: Function): void;
+}
+
+// Translate API
+interface TranslateAPI {
+  Search: new () => TranslateSearch;
+}
+
+interface TranslateSearch {
+  setIdentifier(identifier: { DOI?: string; ISBN?: string; PMID?: string | string[]; arXiv?: string }): void;
+  setSearch(search: Record<string, any>): void;
+  getTranslators(): Promise<any[]>;
+  setTranslator(translators: any[]): void;
+  translate(options: { libraryID?: number | false; collections?: number[] | false; saveAttachments?: boolean }): Promise<any[]>;
+}
+
+// Utilities API
+interface UtilitiesAPI {
+  extractIdentifiers(text: string): Array<{ DOI?: string; ISBN?: string; PMID?: string; arXiv?: string }>;
 }
 
 // ZutiloRE plugin API

@@ -9,6 +9,7 @@
 import { onStartup, onShutdown } from './hooks';
 import { registerMenus } from './modules/main';
 import { copyCollectionPath } from './modules/collections';
+import { updateMetadata } from './modules/metadata';
 
 // Export plugin API for Zotero
 const zutiloRE = {
@@ -68,6 +69,9 @@ const zutiloRE = {
     switch (commandId) {
       case 'zutilore-copy-collection-path':
         copyCollectionPath();
+        break;
+      case 'zutilore-update-metadata':
+        updateMetadata();
         break;
     }
   },

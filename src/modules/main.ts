@@ -136,6 +136,7 @@ function addItemMenuItems(itemMenu: Element): void {
   // (Other Zutilo features are available in original Zutilo)
   const items = [
     { id: 'zutilore-copy-collection-path', label: 'Copy Collection Path' },
+    { id: 'zutilore-update-metadata', label: 'Update Metadata' },
   ];
 
   for (const item of items) {
