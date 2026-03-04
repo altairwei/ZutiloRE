@@ -6,7 +6,7 @@
 import { onStartup, onShutdown } from './hooks';
 import { registerMenus } from './modules/main';
 import { copyTags, pasteTags, removeTags } from './modules/tags';
-import { relateItems, copyZoteroSelectLink, copyZoteroItemID, copyZoteroItemURI, copyAttachmentPaths, copyCreators, copyChildIDs } from './modules/items';
+import { relateItems, copyZoteroSelectLink, copyZoteroItemID, copyZoteroItemURI, copyAttachmentPaths, copyCreators, copyChildIDs, relocateChildren } from './modules/items';
 import { copyCollectionLink, copyCollectionPath } from './modules/collections';
 import { createBookFromSection, createSectionFromBook } from './modules/creation';
 
@@ -100,6 +100,9 @@ const zutiloRE = {
         break;
       case 'zutilore-copy-child-ids':
         copyChildIDs();
+        break;
+      case 'zutilore-relocate-children':
+        relocateChildren();
         break;
         copyZoteroItemURI();
         break;

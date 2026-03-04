@@ -305,5 +305,36 @@ export function copyChildIDs(): void {
   }
 
   copyToClipboard(allIDs.join('\r\n'));
-  showNotification('Child IDs Copied', `Copied ${allIDs.length} child item ID(s)`);
+  showNotification('Child Items Copied', `Copied ${allIDs.length} child item(s)`);
+}
+
+/**
+ * Relocate child items: move items from internal clipboard to selected item
+ */
+export async function relocateChildren(): Promise<void> {
+  const items = getSelectedItems();
+
+  if (items.length !== 1) {
+    showNotification('Error', 'Select exactly 1 item as new parent');
+    return;
+  }
+
+  if (!childClipboard.length) {
+    showNotification('Error', 'No child items in clipboard. Use "Copy Child Items" first');
+    return;
+  }
+
+  const newParent = items[0];
+
+  for (const childID of childClipboard) {
+    const child = Zotero.Items.get(childID);
+    if (child) {
+      child.parentKey = newParent.key;
+      await child.saveTx();
+    }
+  }
+
+  const count = childClipboard.length;
+  childClipboard = []; // Clear clipboard after relocate
+  showNotification('Children Relocated', `Moved ${count} child item(s) to selected item`);
 }
