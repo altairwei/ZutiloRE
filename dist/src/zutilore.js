@@ -1,6 +1,583 @@
-"use strict";var zutiloRE=(()=>{var y=Object.defineProperty;var D=Object.getOwnPropertyDescriptor;var L=Object.getOwnPropertyNames;var U=Object.prototype.hasOwnProperty;var A=(e,t)=>{for(var o in t)y(e,o,{get:t[o],enumerable:!0})},N=(e,t,o,r)=>{if(t&&typeof t=="object"||typeof t=="function")for(let n of L(t))!U.call(e,n)&&n!==o&&y(e,n,{get:()=>t[n],enumerable:!(r=D(t,n))||r.enumerable});return e};var W=e=>N(y({},"__esModule",{value:!0}),e);var j={};A(j,{onShutdown:()=>I,onStartup:()=>Z,zutiloRE:()=>g});async function Z(){Zotero.debug("ZutiloRE: onStartup called");try{await Zotero.initializationPromise,Zotero.debug("ZutiloRE: Zotero initialized"),await g.init();for(let e of Zotero.getMainWindows())await M(e);Zotero.debug("ZutiloRE: Startup complete")}catch(e){throw Zotero.debug(`ZutiloRE: Startup error - ${e}`),e}}async function M(e){Zotero.debug("ZutiloRE: onMainWindowLoad called");try{e.document.readyState!=="complete"&&await new Promise(t=>{e.document.addEventListener("readystatechange",()=>{e.document.readyState==="complete"&&t()})}),Zotero.debug("ZutiloRE: Window ready")}catch(t){Zotero.debug(`ZutiloRE: Window load error - ${t}`)}}function I(){Zotero.debug("ZutiloRE: onShutdown called");try{g&&g.destroy&&g.destroy();try{Components.classes["@mozilla.org/intl/stringbundle;1"].getService(Components.interfaces.nsIStringBundleService).flushBundles()}catch{}Zotero.debug("ZutiloRE: Shutdown complete")}catch(e){Zotero.debug(`ZutiloRE: Shutdown error - ${e}`)}}function c(){let e=Zotero.getActiveZoteroPane();return e?e.getSelectedItems():[]}function w(){let e=Zotero.getActiveZoteroPane();if(!e)return null;let t=e.getCollectionTreeRow();return!t||!t.isCollection()?null:t.ref||t.collection||null}function p(e){try{Components.classes["@mozilla.org/widget/clipboardhelper;1"].getService(Components.interfaces.nsIClipboardHelper).copyString(e)}catch(t){Zotero.debug(`ZutiloRE: Clipboard error - ${t}`)}}function i(e,t){try{Components.classes["@mozilla.org/alerts-service;1"].getService(Components.interfaces.nsIAlertsService).showAlertNotification(null,e,t,!1,"",null)}catch{Zotero.debug(`ZutiloRE: ${e} - ${t}`)}}function h(e){try{let t=e.document;Zotero.debug("ZutiloRE: registerMenus called");let o=t.getElementById("zotero-itemmenu");Zotero.debug("ZutiloRE: itemMenu found: "+!!o),o&&B(o);let r=t.getElementById("zotero-collectionmenu");Zotero.debug("ZutiloRE: collectionMenu found: "+!!r),r&&F(r),Zotero.debug("ZutiloRE: Menus registered")}catch(t){Zotero.debug(`ZutiloRE: Error registering menus - ${t}`)}}function B(e){let t=e.ownerDocument;if(t.getElementById("zutilore-itemmenu-separator"))return;let o=t.createXULElement("menuseparator");o.id="zutilore-itemmenu-separator",e.appendChild(o);let r=[{id:"zutilore-copy-tags",label:"Copy Tags to Clipboard"},{id:"zutilore-paste-tags",label:"Paste Tags from Clipboard"},{id:"zutilore-remove-tags",label:"Remove All Tags"},{id:"zutilore-relate-items",label:"Relate Items"},{id:"zutilore-copy-select-link",label:"Copy Select Link"},{id:"zutilore-copy-item-id",label:"Copy Item ID"},{id:"zutilore-copy-item-uri",label:"Copy Zotero URI"}];for(let n of r){let s=t.createXULElement("menuitem");s.id=n.id,s.setAttribute("label",n.label),s.setAttribute("oncommand",`Zotero.zutiloRE.handleMenuCommand('${n.id}')`),e.appendChild(s)}}function F(e){let t=e.ownerDocument;if(t.getElementById("zutilore-collectionmenu-separator"))return;let o=t.createXULElement("menuseparator");o.id="zutilore-collectionmenu-separator",e.appendChild(o);let r=t.createXULElement("menuitem");r.id="zutilore-copy-collection-link",r.setAttribute("label","Copy Collection Link"),r.setAttribute("oncommand","Zotero.zutiloRE.handleMenuCommand('zutilore-copy-collection-link')"),e.appendChild(r)}var f=[];function C(){let e=c();if(!e.length)return;let t=new Set;for(let r of e){let n=r.getTags();for(let s of n)t.add(s.tag)}let o=Array.from(t).join(`
-`);p(o),f=Array.from(t),i("Tags Copied",`Copied ${t.size} unique tags`)}async function v(){if(!f||!f.length){i("Error","No tags copied. Use Copy Tags first.");return}let e=c();if(!e.length){i("Error","No items selected");return}for(let t of e){for(let o of f)t.addTag(o);await t.saveTx()}i("Tags Pasted",`Added ${f.length} tags to ${e.length} items`)}async function z(){let e=c();if(!(!e.length||!Services.prompt.confirm(null,"Remove All Tags",`Remove all tags from ${e.length} items?`))){for(let o of e)o.setTags([]),await o.saveTx();i("Tags Removed",`Removed all tags from ${e.length} items`)}}async function S(){let e=c();if(e.length<2){i("Error","Select at least 2 items to relate");return}for(let t=0;t<e.length;t++)for(let o=t+1;o<e.length;o++)e[t].addRelatedItem(e[o]),e[o].addRelatedItem(e[t]);for(let t of e)await t.saveTx();i("Items Related",`Related ${e.length} items to each other`)}function R(){let e=c();if(!e.length){i("Error","No items selected");return}let t=[];for(let o of e){let r=Zotero.Libraries.get(o.libraryID).libraryType,n;switch(r){case"group":n=Zotero.URI.getLibraryPath(o.libraryID);break;case"user":default:n="library";break}t.push(`zotero://select/${n}/items/${o.key}`)}p(t.join(`\r
-`)),i("Links Copied",`Copied ${t.length} select link(s)`)}function E(){let e=c();if(!e.length){i("Error","No items selected");return}let t=e.map(o=>o.key);p(t.join(`\r
-`)),i("IDs Copied",`Copied ${t.length} item ID(s)`)}function k(){let e=c();if(!e.length){i("Error","No items selected");return}let t=null;try{Zotero.Users&&Zotero.Users.getCurrentUsername&&(t=Zotero.Users.getCurrentUsername())}catch{}let o=[];for(let r of e){let n=Zotero.URI.getItemURI(r),s=n.match(/http:\/\/zotero\.org\/(users\/(\d+)|groups\/(\d+))\/items\/(.+)/);if(s){let a=s[3]!==void 0,l=s[4];if(a){let m=s[3];o.push(`https://www.zotero.org/groups/${m}/items/${l}`)}else if(t)o.push(`https://www.zotero.org/${t}/items/${l}`);else{let m=s[2];o.push(`https://www.zotero.org/users/${m}/items/${l}`)}continue}let u=n.match(/zotero:\/\/([^/]+)\/items\/(.+)/);if(u){let a=u[1],l=u[2];if(a.startsWith("groups/")){let m=a.replace("groups/","");o.push(`https://www.zotero.org/groups/${m}/items/${l}`)}else t?o.push(`https://www.zotero.org/${t}/items/${l}`):o.push("https://www.zotero.org/users/USER_ID/items/"+l);continue}let d=n.match(/zotero:\/\/select\/(.+)/);if(d){let a=d[1];if(a.includes("/items/")){let l=a.split("/items/");if(l.length===2){let m=l[0],b=l[1];if(m.startsWith("groups/")){let x=m.replace("groups/","");o.push(`https://www.zotero.org/groups/${x}/items/${b}`)}else t?o.push(`https://www.zotero.org/${t}/items/${b}`):o.push("https://www.zotero.org/users/USER_ID/items/"+b)}}}}p(o.join(`\r
-`)),i("URIs Copied",`Copied ${o.length} Zotero URI(s)`)}function T(){let e=w();if(!e)return;let t=e.libraryID,o=e.key,r=`zotero://select/library/${t}/collections/${o}`;p(r),i("Link Copied","Collection link copied to clipboard")}async function $(){let e=c();if(e.length!==1){i("Error","Select exactly 1 book section");return}let t=e[0];if(t.itemTypeID!==Zotero.ItemTypes.getID("bookSection")){i("Error","Selected item is not a book section");return}let o=new Zotero.Item("book"),r=["title","publisher","place","date","ISBN","language"];for(let d of r){let a=t.getField(d);a&&o.setField(d,a)}let n=t.getCreators();for(let d of n)o.addCreator(d);let s=await o.saveTx();t.addRelatedItem(o),await t.saveTx(),i("Book Created","New book item created from section");let u=Zotero.getActiveZoteroPane();u&&u.selectItem(s)}async function P(){let e=c();if(e.length!==1){i("Error","Select exactly 1 book");return}let t=e[0];if(t.itemTypeID!==Zotero.ItemTypes.getID("book")){i("Error","Selected item is not a book");return}let o=new Zotero.Item("bookSection"),r=["title","publisher","place","date","ISBN","language"];for(let a of r){let l=t.getField(a);l&&o.setField(a,l)}let n=t.getCreators();for(let a of n)o.addCreator(a);let s=prompt("Enter chapter/section title:");s&&o.setField("title",s);let u=await o.saveTx();o.addRelatedItem(t),await o.saveTx(),i("Section Created","New book section created");let d=Zotero.getActiveZoteroPane();d&&d.selectItem(u)}var g={initialized:!1,registerMenus:h,async init(){Zotero.debug("ZutiloRE: init() called"),await Promise.all([Zotero.initializationPromise,Zotero.unlockPromise,Zotero.uiReadyPromise]);for(let e of Zotero.getMainWindows())await this.onWindowLoad(e);this.initialized=!0,Zotero.debug("ZutiloRE: Initialized successfully")},async onWindowLoad(e){Zotero.debug("ZutiloRE: onWindowLoad called"),await new Promise(t=>{e.document.readyState==="complete"?t():e.document.addEventListener("readystatechange",()=>{e.document.readyState==="complete"&&t()})}),Zotero.debug("ZutiloRE: Window ready, calling registerMenus"),h(e)},handleMenuCommand(e){switch(e){case"zutilore-copy-tags":C();break;case"zutilore-paste-tags":v();break;case"zutilore-remove-tags":z();break;case"zutilore-relate-items":S();break;case"zutilore-copy-collection-link":T();break;case"zutilore-copy-select-link":R();break;case"zutilore-copy-item-id":E();break;case"zutilore-copy-item-uri":k();break;case"zutilore-create-book-from-section":$();break;case"zutilore-create-section-from-book":P();break}},getSelectedItems(){let e=Zotero.getActiveZoteroPane();return e?e.getSelectedItems():[]},getSelectedCollection(){let e=Zotero.getActiveZoteroPane();if(!e)return null;let t=e.getCollectionTreeRow();return!t||!t.isCollection()?null:t.ref||t.collection||null},copyToClipboard(e){try{Components.classes["@mozilla.org/widget/clipboardhelper;1"].getService(Components.interfaces.nsIClipboardHelper).copyString(e)}catch(t){Zotero.debug(`ZutiloRE: Clipboard error: ${t}`)}},showNotification(e,t){try{Components.classes["@mozilla.org/alerts-service;1"].getService(Components.interfaces.nsIAlertsService).showAlertNotification(null,e,t,!1,"",null)}catch{Zotero.debug(`ZutiloRE: ${e} - ${t}`)}},destroy(){Zotero.debug("ZutiloRE: Destroying..."),this.initialized=!1},devReload(){return Zotero.debug("ZutiloRE: Development reload triggered"),"Reload initiated"}};typeof Zotero<"u"&&(Zotero.zutiloRE=g);return W(j);})();
+"use strict";
+var zutiloRE = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // src/index.ts
+  var index_exports = {};
+  __export(index_exports, {
+    onShutdown: () => onShutdown,
+    onStartup: () => onStartup,
+    zutiloRE: () => zutiloRE
+  });
+
+  // src/hooks.ts
+  async function onStartup() {
+    Zotero.debug("ZutiloRE: onStartup called");
+    try {
+      await Zotero.initializationPromise;
+      Zotero.debug("ZutiloRE: Zotero initialized");
+      await zutiloRE.init();
+      for (const win of Zotero.getMainWindows()) {
+        await onMainWindowLoad(win);
+      }
+      Zotero.debug("ZutiloRE: Startup complete");
+    } catch (e) {
+      Zotero.debug(`ZutiloRE: Startup error - ${e}`);
+      throw e;
+    }
+  }
+  async function onMainWindowLoad(win) {
+    Zotero.debug("ZutiloRE: onMainWindowLoad called");
+    try {
+      if (win.document.readyState !== "complete") {
+        await new Promise((resolve) => {
+          win.document.addEventListener("readystatechange", () => {
+            if (win.document.readyState === "complete") {
+              resolve();
+            }
+          });
+        });
+      }
+      Zotero.debug("ZutiloRE: Window ready");
+    } catch (e) {
+      Zotero.debug(`ZutiloRE: Window load error - ${e}`);
+    }
+  }
+  function onShutdown() {
+    Zotero.debug("ZutiloRE: onShutdown called");
+    try {
+      if (zutiloRE && zutiloRE.destroy) {
+        zutiloRE.destroy();
+      }
+      try {
+        Components.classes["@mozilla.org/intl/stringbundle;1"].getService(Components.interfaces.nsIStringBundleService).flushBundles();
+      } catch (e) {
+      }
+      Zotero.debug("ZutiloRE: Shutdown complete");
+    } catch (e) {
+      Zotero.debug(`ZutiloRE: Shutdown error - ${e}`);
+    }
+  }
+
+  // src/modules/main.ts
+  function getSelectedItems() {
+    const zoteroPane = Zotero.getActiveZoteroPane();
+    if (!zoteroPane) return [];
+    return zoteroPane.getSelectedItems();
+  }
+  function getSelectedCollection() {
+    const zoteroPane = Zotero.getActiveZoteroPane();
+    if (!zoteroPane) return null;
+    const collectionTreeRow = zoteroPane.getCollectionTreeRow();
+    if (!collectionTreeRow || !collectionTreeRow.isCollection()) return null;
+    return collectionTreeRow.ref || collectionTreeRow.collection || null;
+  }
+  function copyToClipboard(text) {
+    try {
+      const clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"].getService(Components.interfaces.nsIClipboardHelper);
+      clipboard.copyString(text);
+    } catch (e) {
+      Zotero.debug(`ZutiloRE: Clipboard error - ${e}`);
+    }
+  }
+  function showNotification(title, message) {
+    try {
+      const alertsService = Components.classes["@mozilla.org/alerts-service;1"].getService(Components.interfaces.nsIAlertsService);
+      alertsService.showAlertNotification(null, title, message, false, "", null);
+    } catch (e) {
+      Zotero.debug(`ZutiloRE: ${title} - ${message}`);
+    }
+  }
+  function registerMenus(win) {
+    try {
+      const doc = win.document;
+      Zotero.debug("ZutiloRE: registerMenus called");
+      const itemMenu = doc.getElementById("zotero-itemmenu");
+      Zotero.debug("ZutiloRE: itemMenu found: " + !!itemMenu);
+      if (itemMenu) {
+        addItemMenuItems(itemMenu);
+      }
+      const collectionMenu = doc.getElementById("zotero-collectionmenu");
+      Zotero.debug("ZutiloRE: collectionMenu found: " + !!collectionMenu);
+      if (collectionMenu) {
+        addCollectionMenuItems(collectionMenu);
+      }
+      Zotero.debug("ZutiloRE: Menus registered");
+    } catch (e) {
+      Zotero.debug(`ZutiloRE: Error registering menus - ${e}`);
+    }
+  }
+  function addItemMenuItems(itemMenu) {
+    const doc = itemMenu.ownerDocument;
+    if (doc.getElementById("zutilore-itemmenu-separator")) {
+      return;
+    }
+    const separator = doc.createXULElement("menuseparator");
+    separator.id = "zutilore-itemmenu-separator";
+    itemMenu.appendChild(separator);
+    const items = [
+      { id: "zutilore-copy-tags", label: "Copy Tags to Clipboard" },
+      { id: "zutilore-paste-tags", label: "Paste Tags from Clipboard" },
+      { id: "zutilore-remove-tags", label: "Remove All Tags" },
+      { id: "zutilore-relate-items", label: "Relate Items" },
+      { id: "zutilore-copy-select-link", label: "Copy Select Link" },
+      { id: "zutilore-copy-item-id", label: "Copy Item ID" },
+      { id: "zutilore-copy-item-uri", label: "Copy Zotero URI" }
+    ];
+    for (const item of items) {
+      const menuitem = doc.createXULElement("menuitem");
+      menuitem.id = item.id;
+      menuitem.setAttribute("label", item.label);
+      menuitem.setAttribute("oncommand", `Zotero.zutiloRE.handleMenuCommand('${item.id}')`);
+      itemMenu.appendChild(menuitem);
+    }
+  }
+  function addCollectionMenuItems(collectionMenu) {
+    const doc = collectionMenu.ownerDocument;
+    if (doc.getElementById("zutilore-collectionmenu-separator")) {
+      return;
+    }
+    const separator = doc.createXULElement("menuseparator");
+    separator.id = "zutilore-collectionmenu-separator";
+    collectionMenu.appendChild(separator);
+    const items = [
+      { id: "zutilore-copy-collection-link", label: "Copy Collection Link" },
+      { id: "zutilore-copy-collection-path", label: "Copy Collection Path" }
+    ];
+    for (const item of items) {
+      const menuitem = doc.createXULElement("menuitem");
+      menuitem.id = item.id;
+      menuitem.setAttribute("label", item.label);
+      menuitem.setAttribute("oncommand", `Zotero.zutiloRE.handleMenuCommand('${item.id}')`);
+      collectionMenu.appendChild(menuitem);
+    }
+  }
+
+  // src/modules/tags.ts
+  var copiedTags = [];
+  function copyTags() {
+    const items = getSelectedItems();
+    if (!items.length) return;
+    const allTags = /* @__PURE__ */ new Set();
+    for (const item of items) {
+      const tags = item.getTags();
+      for (const tagObj of tags) {
+        allTags.add(tagObj.tag);
+      }
+    }
+    const tagString = Array.from(allTags).join("\n");
+    copyToClipboard(tagString);
+    copiedTags = Array.from(allTags);
+    showNotification("Tags Copied", `Copied ${allTags.size} unique tags`);
+  }
+  async function pasteTags() {
+    if (!copiedTags || !copiedTags.length) {
+      showNotification("Error", "No tags copied. Use Copy Tags first.");
+      return;
+    }
+    const items = getSelectedItems();
+    if (!items.length) {
+      showNotification("Error", "No items selected");
+      return;
+    }
+    for (const item of items) {
+      for (const tag of copiedTags) {
+        item.addTag(tag);
+      }
+      await item.saveTx();
+    }
+    showNotification("Tags Pasted", `Added ${copiedTags.length} tags to ${items.length} items`);
+  }
+  async function removeTags() {
+    const items = getSelectedItems();
+    if (!items.length) return;
+    const confirmed = Services.prompt.confirm(
+      null,
+      "Remove All Tags",
+      `Remove all tags from ${items.length} items?`
+    );
+    if (!confirmed) return;
+    for (const item of items) {
+      item.setTags([]);
+      await item.saveTx();
+    }
+    showNotification("Tags Removed", `Removed all tags from ${items.length} items`);
+  }
+
+  // src/modules/items.ts
+  async function relateItems() {
+    const items = getSelectedItems();
+    if (items.length < 2) {
+      showNotification("Error", "Select at least 2 items to relate");
+      return;
+    }
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        items[i].addRelatedItem(items[j]);
+        items[j].addRelatedItem(items[i]);
+      }
+    }
+    for (const item of items) {
+      await item.saveTx();
+    }
+    showNotification("Items Related", `Related ${items.length} items to each other`);
+  }
+  function copyZoteroSelectLink() {
+    const items = getSelectedItems();
+    if (!items.length) {
+      showNotification("Error", "No items selected");
+      return;
+    }
+    const links = [];
+    for (const item of items) {
+      const libraryType = Zotero.Libraries.get(item.libraryID).libraryType;
+      let path;
+      switch (libraryType) {
+        case "group":
+          path = Zotero.URI.getLibraryPath(item.libraryID);
+          break;
+        case "user":
+        default:
+          path = "library";
+          break;
+      }
+      links.push(`zotero://select/${path}/items/${item.key}`);
+    }
+    copyToClipboard(links.join("\r\n"));
+    showNotification("Links Copied", `Copied ${links.length} select link(s)`);
+  }
+  function copyZoteroItemID() {
+    const items = getSelectedItems();
+    if (!items.length) {
+      showNotification("Error", "No items selected");
+      return;
+    }
+    const ids = items.map((item) => item.key);
+    copyToClipboard(ids.join("\r\n"));
+    showNotification("IDs Copied", `Copied ${ids.length} item ID(s)`);
+  }
+  function copyZoteroItemURI() {
+    const items = getSelectedItems();
+    if (!items.length) {
+      showNotification("Error", "No items selected");
+      return;
+    }
+    let username = null;
+    try {
+      if (Zotero.Users && Zotero.Users.getCurrentUsername) {
+        username = Zotero.Users.getCurrentUsername();
+      }
+    } catch (e) {
+    }
+    const uris = [];
+    for (const item of items) {
+      const uri = Zotero.URI.getItemURI(item);
+      const match = uri.match(/http:\/\/zotero\.org\/(users\/(\d+)|groups\/(\d+))\/items\/(.+)/);
+      if (match) {
+        const isGroup = match[3] !== void 0;
+        const itemKey = match[4];
+        if (isGroup) {
+          const groupID = match[3];
+          uris.push(`https://www.zotero.org/groups/${groupID}/items/${itemKey}`);
+        } else {
+          if (username) {
+            uris.push(`https://www.zotero.org/${username}/items/${itemKey}`);
+          } else {
+            const userID = match[2];
+            uris.push(`https://www.zotero.org/users/${userID}/items/${itemKey}`);
+          }
+        }
+        continue;
+      }
+      const match2 = uri.match(/zotero:\/\/([^/]+)\/items\/(.+)/);
+      if (match2) {
+        const libraryID = match2[1];
+        const itemKey = match2[2];
+        if (libraryID.startsWith("groups/")) {
+          const groupID = libraryID.replace("groups/", "");
+          uris.push(`https://www.zotero.org/groups/${groupID}/items/${itemKey}`);
+        } else {
+          if (username) {
+            uris.push(`https://www.zotero.org/${username}/items/${itemKey}`);
+          } else {
+            uris.push("https://www.zotero.org/users/USER_ID/items/" + itemKey);
+          }
+        }
+        continue;
+      }
+      const match3 = uri.match(/zotero:\/\/select\/(.+)/);
+      if (match3) {
+        const selectPath = match3[1];
+        if (selectPath.includes("/items/")) {
+          const parts = selectPath.split("/items/");
+          if (parts.length === 2) {
+            const libPath = parts[0];
+            const key = parts[1];
+            if (libPath.startsWith("groups/")) {
+              const groupID = libPath.replace("groups/", "");
+              uris.push(`https://www.zotero.org/groups/${groupID}/items/${key}`);
+            } else if (username) {
+              uris.push(`https://www.zotero.org/${username}/items/${key}`);
+            } else {
+              uris.push("https://www.zotero.org/users/USER_ID/items/" + key);
+            }
+          }
+        }
+      }
+    }
+    copyToClipboard(uris.join("\r\n"));
+    showNotification("URIs Copied", `Copied ${uris.length} Zotero URI(s)`);
+  }
+
+  // src/modules/collections.ts
+  function copyCollectionLink() {
+    const collection = getSelectedCollection();
+    if (!collection) return;
+    const libraryID = collection.libraryID;
+    const key = collection.key;
+    const uri = `zotero://select/library/${libraryID}/collections/${key}`;
+    copyToClipboard(uri);
+    showNotification("Link Copied", "Collection link copied to clipboard");
+  }
+  function copyCollectionPath() {
+    const collection = getSelectedCollection();
+    if (!collection) return;
+    const parts = [];
+    let current = collection;
+    while (current) {
+      parts.unshift(current.name);
+      if (!current.parentID) break;
+      current = Zotero.Collections.get(current.parentID);
+    }
+    const fullPath = parts.join(" / ");
+    copyToClipboard(fullPath);
+    showNotification("Path Copied", fullPath);
+  }
+
+  // src/modules/creation.ts
+  async function createBookFromSection() {
+    const items = getSelectedItems();
+    if (items.length !== 1) {
+      showNotification("Error", "Select exactly 1 book section");
+      return;
+    }
+    const section = items[0];
+    if (section.itemTypeID !== Zotero.ItemTypes.getID("bookSection")) {
+      showNotification("Error", "Selected item is not a book section");
+      return;
+    }
+    const book = new Zotero.Item("book");
+    const fieldsToCopy = ["title", "publisher", "place", "date", "ISBN", "language"];
+    for (const field of fieldsToCopy) {
+      const value = section.getField(field);
+      if (value) {
+        book.setField(field, value);
+      }
+    }
+    const creators = section.getCreators();
+    for (const creator of creators) {
+      book.addCreator(creator);
+    }
+    const bookID = await book.saveTx();
+    section.addRelatedItem(book);
+    await section.saveTx();
+    showNotification("Book Created", "New book item created from section");
+    const zoteroPane = Zotero.getActiveZoteroPane();
+    if (zoteroPane) {
+      zoteroPane.selectItem(bookID);
+    }
+  }
+  async function createSectionFromBook() {
+    const items = getSelectedItems();
+    if (items.length !== 1) {
+      showNotification("Error", "Select exactly 1 book");
+      return;
+    }
+    const book = items[0];
+    if (book.itemTypeID !== Zotero.ItemTypes.getID("book")) {
+      showNotification("Error", "Selected item is not a book");
+      return;
+    }
+    const section = new Zotero.Item("bookSection");
+    const fieldsToCopy = ["title", "publisher", "place", "date", "ISBN", "language"];
+    for (const field of fieldsToCopy) {
+      const value = book.getField(field);
+      if (value) {
+        section.setField(field, value);
+      }
+    }
+    const creators = book.getCreators();
+    for (const creator of creators) {
+      section.addCreator(creator);
+    }
+    const title = prompt("Enter chapter/section title:");
+    if (title) {
+      section.setField("title", title);
+    }
+    const sectionID = await section.saveTx();
+    section.addRelatedItem(book);
+    await section.saveTx();
+    showNotification("Section Created", "New book section created");
+    const zoteroPane = Zotero.getActiveZoteroPane();
+    if (zoteroPane) {
+      zoteroPane.selectItem(sectionID);
+    }
+  }
+
+  // src/index.ts
+  var zutiloRE = {
+    initialized: false,
+    // Expose registerMenus for bootstrap.js call
+    registerMenus,
+    /**
+     * Initialize the plugin
+     */
+    async init() {
+      Zotero.debug("ZutiloRE: init() called");
+      await Promise.all([
+        Zotero.initializationPromise,
+        Zotero.unlockPromise,
+        Zotero.uiReadyPromise
+      ]);
+      for (const win of Zotero.getMainWindows()) {
+        await this.onWindowLoad(win);
+      }
+      this.initialized = true;
+      Zotero.debug("ZutiloRE: Initialized successfully");
+    },
+    /**
+     * Called when a main window loads
+     */
+    async onWindowLoad(win) {
+      Zotero.debug("ZutiloRE: onWindowLoad called");
+      await new Promise((resolve) => {
+        if (win.document.readyState === "complete") {
+          resolve();
+        } else {
+          win.document.addEventListener("readystatechange", () => {
+            if (win.document.readyState === "complete") {
+              resolve();
+            }
+          });
+        }
+      });
+      Zotero.debug("ZutiloRE: Window ready, calling registerMenus");
+      registerMenus(win);
+    },
+    /**
+     * Handle menu commands
+     */
+    handleMenuCommand(commandId) {
+      switch (commandId) {
+        case "zutilore-copy-tags":
+          copyTags();
+          break;
+        case "zutilore-paste-tags":
+          pasteTags();
+          break;
+        case "zutilore-remove-tags":
+          removeTags();
+          break;
+        case "zutilore-relate-items":
+          relateItems();
+          break;
+        case "zutilore-copy-collection-link":
+          copyCollectionLink();
+          break;
+        case "zutilore-copy-collection-path":
+          copyCollectionPath();
+          break;
+        case "zutilore-copy-select-link":
+          copyZoteroSelectLink();
+          break;
+        case "zutilore-copy-item-id":
+          copyZoteroItemID();
+          break;
+        case "zutilore-copy-item-uri":
+          copyZoteroItemURI();
+          break;
+        case "zutilore-create-book-from-section":
+          createBookFromSection();
+          break;
+        case "zutilore-create-section-from-book":
+          createSectionFromBook();
+          break;
+      }
+    },
+    /**
+     * Get selected items from active window
+     */
+    getSelectedItems() {
+      const zoteroPane = Zotero.getActiveZoteroPane();
+      if (!zoteroPane) return [];
+      return zoteroPane.getSelectedItems();
+    },
+    /**
+     * Get selected collection
+     */
+    getSelectedCollection() {
+      const zoteroPane = Zotero.getActiveZoteroPane();
+      if (!zoteroPane) return null;
+      const collectionTreeRow = zoteroPane.getCollectionTreeRow();
+      if (!collectionTreeRow || !collectionTreeRow.isCollection()) return null;
+      return collectionTreeRow.ref || collectionTreeRow.collection || null;
+    },
+    /**
+     * Copy text to clipboard
+     */
+    copyToClipboard(text) {
+      try {
+        const clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"].getService(Components.interfaces.nsIClipboardHelper);
+        clipboard.copyString(text);
+      } catch (e) {
+        Zotero.debug(`ZutiloRE: Clipboard error: ${e}`);
+      }
+    },
+    /**
+     * Show notification
+     */
+    showNotification(title, message) {
+      try {
+        const alertsService = Components.classes["@mozilla.org/alerts-service;1"].getService(Components.interfaces.nsIAlertsService);
+        alertsService.showAlertNotification(null, title, message, false, "", null);
+      } catch (e) {
+        Zotero.debug(`ZutiloRE: ${title} - ${message}`);
+      }
+    },
+    /**
+     * Destroy the plugin
+     */
+    destroy() {
+      Zotero.debug("ZutiloRE: Destroying...");
+      this.initialized = false;
+    },
+    /**
+     * Development reload function
+     */
+    devReload() {
+      Zotero.debug("ZutiloRE: Development reload triggered");
+      return "Reload initiated";
+    }
+  };
+  if (typeof Zotero !== "undefined") {
+    Zotero.zutiloRE = zutiloRE;
+  }
+  return __toCommonJS(index_exports);
+})();
 //# sourceMappingURL=zutilore.js.map

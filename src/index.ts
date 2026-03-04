@@ -7,7 +7,7 @@ import { onStartup, onShutdown } from './hooks';
 import { registerMenus } from './modules/main';
 import { copyTags, pasteTags, removeTags } from './modules/tags';
 import { relateItems, copyZoteroSelectLink, copyZoteroItemID, copyZoteroItemURI } from './modules/items';
-import { copyCollectionLink } from './modules/collections';
+import { copyCollectionLink, copyCollectionPath } from './modules/collections';
 import { createBookFromSection, createSectionFromBook } from './modules/creation';
 
 // Export plugin API for Zotero
@@ -79,6 +79,9 @@ const zutiloRE = {
         break;
       case 'zutilore-copy-collection-link':
         copyCollectionLink();
+        break;
+      case 'zutilore-copy-collection-path':
+        copyCollectionPath();
         break;
       case 'zutilore-copy-select-link':
         copyZoteroSelectLink();
