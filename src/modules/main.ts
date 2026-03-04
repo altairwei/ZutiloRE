@@ -136,6 +136,7 @@ function addItemMenuItems(itemMenu: Element): void {
     { id: 'zutilore-copy-item-id', label: 'Copy Item ID' },
     { id: 'zutilore-copy-item-uri', label: 'Copy Zotero URI' },
     { id: 'zutilore-copy-attachment-paths', label: 'Copy Attachment Paths' },
+    { id: 'zutilore-copy-creators', label: 'Copy Creators' },
   ];
 
   for (const item of items) {
