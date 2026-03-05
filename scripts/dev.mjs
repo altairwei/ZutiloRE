@@ -87,12 +87,15 @@ function findZoteroBin() {
     return process.env.ZOTERO_BIN;
   }
 
-  // 2. zotero-plugin.ini
+  // 2. zotero-plugin.ini — host-specific section [zotero.<hostname>] takes
+  //    priority over the generic [zotero] section.
   const pluginIni = path.join(PROJECT_ROOT, 'zotero-plugin.ini');
   if (fs.existsSync(pluginIni)) {
     const sections = parseIni(fs.readFileSync(pluginIni, 'utf-8'));
-    if (sections.zotero?.path && fs.existsSync(sections.zotero.path)) {
-      return sections.zotero.path;
+    const hostname = os.hostname();
+    const zoteroCfg = sections[`zotero.${hostname}`] ?? sections.zotero;
+    if (zoteroCfg?.path && fs.existsSync(zoteroCfg.path)) {
+      return zoteroCfg.path;
     }
   }
 
@@ -122,12 +125,15 @@ function findProfileDir() {
     return dir;
   }
 
-  // 2. zotero-plugin.ini
+  // 2. zotero-plugin.ini — host-specific section [profile.<hostname>] takes
+  //    priority over the generic [profile] section.
   const pluginIni = path.join(PROJECT_ROOT, 'zotero-plugin.ini');
   if (fs.existsSync(pluginIni)) {
     const sections = parseIni(fs.readFileSync(pluginIni, 'utf-8'));
-    if (sections.profile?.path && fs.existsSync(sections.profile.path)) {
-      return sections.profile.path;
+    const hostname = os.hostname();
+    const profileCfg = sections[`profile.${hostname}`] ?? sections.profile;
+    if (profileCfg?.path && fs.existsSync(profileCfg.path)) {
+      return profileCfg.path;
     }
   }
 
