@@ -25,3 +25,15 @@ zutilore-menu-copy-item-fields = Copy Item Fields
 zutilore-menu-paste-item-fields = Paste Item Fields
 zutilore-menu-quickcopy-alt1 = QuickCopy (Alt 1)
 zutilore-menu-quickcopy-alt2 = QuickCopy (Alt 2)
+zutilore-menu-copy-collection-link = Copy Collection Link
+zutilore-menu-copy-select-link = Copy Select Link
+zutilore-menu-copy-item-id = Copy Item ID
+zutilore-menu-copy-item-uri = Copy Zotero URI
+zutilore-menu-create-book-from-section = Create Book from Section
+zutilore-menu-create-section-from-book = Create Section from Book
+
+zutilore-merge-dialog-title = Update Metadata
+zutilore-merge-dialog-instructions = Select field values to keep. Click the dropdown buttons to switch between current and fetched values.
+zutilore-merge-dialog-update-creators = Replace creators with fetched data
+zutilore-merge-dialog-apply = Apply
+zutilore-merge-dialog-cancel = Cancel

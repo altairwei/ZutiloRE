@@ -31,3 +31,9 @@ zutilore-menu-copy-item-id = Copy Item ID
 zutilore-menu-copy-item-uri = Copy Zotero URI
 zutilore-menu-create-book-from-section = Create Book from Section
 zutilore-menu-create-section-from-book = Create Section from Book
+
+zutilore-merge-dialog-title = Update Metadata
+zutilore-merge-dialog-instructions = Select field values to keep. Click the dropdown buttons to switch between current and fetched values.
+zutilore-merge-dialog-update-creators = Replace creators with fetched data
+zutilore-merge-dialog-apply = Apply
+zutilore-merge-dialog-cancel = Cancel

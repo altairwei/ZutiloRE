@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero/skin/zotero.css" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero-platform/content/zotero.css"?>
+
+<!DOCTYPE window SYSTEM "chrome://zotero/locale/zotero.dtd">
+
+<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        xmlns:html="http://www.w3.org/1999/xhtml"
+        onload="ZutiloRE_MergeDialog.init()"
+        title="Update Metadata"
+        style="min-width: 650px; min-height: 500px;">
+
+    <linkset>
+        <html:link rel="localization" href="zutilore.ftl"/>
+        <html:link rel="localization" href="toolkit/global/textActions.ftl"/>
+    </linkset>
+
+    <script>
+        Services.scriptloader.loadSubScript("chrome://zotero/content/include.js", this);
+        Services.scriptloader.loadSubScript("chrome://zotero/content/customElements.js", this);
+        Services.scriptloader.loadSubScript("chrome://zutilore/content/updateMerge.js", this);
+    </script>
+
+    <vbox flex="1" style="padding: 10px; overflow: auto;">
+        <html:p id="merge-instructions" style="margin: 0 0 8px 0; font-size: 13px;">
+            Select field values to keep. Click the dropdown buttons to switch between current and fetched values.
+        </html:p>
+
+        <info-box id="merge-info-box" flex="1"/>
+
+        <separator class="thin"/>
+
+        <hbox id="creators-row" align="center" hidden="true" style="padding: 4px 0;">
+            <checkbox id="update-creators" checked="true"
+                      label="Replace creators with fetched data"/>
+        </hbox>
+
+        <separator class="thin"/>
+
+        <hbox pack="end" style="padding: 4px 0;">
+            <button id="apply-btn" label="Apply"
+                    oncommand="ZutiloRE_MergeDialog.onApply()"/>
+            <button id="cancel-btn" label="Cancel"
+                    oncommand="ZutiloRE_MergeDialog.onCancel()"/>
+        </hbox>
+    </vbox>
+</window>
