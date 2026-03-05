@@ -166,7 +166,6 @@ function addCollectionMenuItems(collectionMenu: Element): void {
 
   // Add menu items
   const items = [
-    { id: 'zutilore-copy-collection-link', label: 'Copy Collection Link' },
     { id: 'zutilore-copy-collection-path', label: 'Copy Collection Path' },
   ];
 
