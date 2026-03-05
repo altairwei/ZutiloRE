@@ -20,6 +20,9 @@ logs/
 # Dependencies
 node_modules/
 
+# Local developer config (use zotero-plugin.ini.example as template)
+zotero-plugin.ini
+
 # Sensitive files (API keys, credentials)
 *.env
 .env.*

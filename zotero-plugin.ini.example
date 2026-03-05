@@ -1,0 +1,32 @@
+# Zotero development configuration.
+# Copy this file to zotero-plugin.ini and fill in your local paths.
+# zotero-plugin.ini is gitignored — never commit it.
+#
+# Per-host sections [profile.<hostname>] and [zotero.<hostname>] take priority
+# over the generic [profile] and [zotero] sections.  Use the hostname form when
+# sharing a machine with multiple developers or working across several machines.
+#
+# Find your hostname:
+#   node -e "console.log(require('os').hostname())"
+#
+# ── Option A: generic (one machine) ──────────────────────────────────────────
+#
+# [profile]
+# path = /path/to/zotero/profile
+#
+# [zotero]
+# path = /path/to/zotero/binary
+#
+# ── Option B: per-host (multiple machines) ───────────────────────────────────
+#
+# [profile.My-Mac.local]
+# path = /Users/yourname/Library/Application Support/Zotero/Profiles/xxxxxxxx.default
+#
+# [zotero.My-Mac.local]
+# path = /Applications/Zotero.app/Contents/MacOS/zotero
+#
+# [profile.MY-WINDOWS-PC]
+# path = C:/Users/yourname/AppData/Roaming/Zotero/Zotero/Profiles/xxxxxxxx.default
+#
+# [zotero.MY-WINDOWS-PC]
+# path = C:/Program Files/Zotero/zotero.exe
