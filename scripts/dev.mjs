@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+
 import { spawn, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { parseArgs } from 'util';
@@ -232,24 +233,30 @@ function installProxyFile(profileDir) {
 
 function ensureDevPrefs(profileDir) {
   const userJsPath = path.join(profileDir, 'user.js');
-  const prefLine = 'user_pref("extensions.autoDisableScopes", 0);';
 
   let content = '';
   if (fs.existsSync(userJsPath)) {
     content = fs.readFileSync(userJsPath, 'utf-8');
-    if (content.includes('extensions.autoDisableScopes')) return;
+    // If ZutiloRE dev prefs already exist, don't re-add them
+    if (content.includes('ZutiloRE dev script')) return;
   }
 
-  const lines = [
-    content.trimEnd(),
+  const devPrefs = [
     '',
     '// Added by ZutiloRE dev script — prevent auto-disabling sideloaded addons',
-    prefLine,
+    'user_pref("extensions.autoDisableScopes", 0);',
     '',
-  ].filter((line, i) => i > 0 || line !== '');  // drop leading blank if file was empty
+    '// Enable Zotero debug logging (bootstrap.js monkey-patches Zotero.debug to write logs/zotero.log)',
+    'user_pref("extensions.zotero.debug.log", true);',
+    'user_pref("extensions.zotero.debug.level", 5);',
+    'user_pref("extensions.zotero.debug.time", true);',
+    '',
+  ];
+
+  const lines = [content.trimEnd(), ...devPrefs].filter((line, i) => i > 0 || line !== '');
 
   fs.writeFileSync(userJsPath, lines.join('\n'), 'utf-8');
-  log('dev', 'Set extensions.autoDisableScopes=0 in user.js');
+  log('dev', 'Configured dev prefs in user.js (autoDisableScopes, debug.log)');
 }
 
 function patchExtensionsJson(profileDir, distAbsPath) {
@@ -266,38 +273,23 @@ function patchExtensionsJson(profileDir, distAbsPath) {
   const addons = data.addons;
   if (!Array.isArray(addons)) return;
 
-  // Build a file:// rootURI pointing to distAbsPath (with trailing slash)
-  const rootURI = 'file://' + distAbsPath.replace(/ /g, '%20') + '/';
+  // Build a file:/// rootURI pointing to distAbsPath (with trailing slash).
+  // On Windows, path.resolve returns backslashes (D:\src\...) which must be
+  // converted to forward slashes, and file URIs need three slashes before an
+  // absolute path (file:///D:/src/...).
+  const posixPath = distAbsPath.replace(/\\/g, '/');
+  const rootURI = 'file:///' + posixPath.replace(/ /g, '%20') + '/';
 
   const idx = addons.findIndex(a => a.id === ADDON_ID);
   if (idx === -1) {
-    // Addon entry was removed (e.g. user uninstalled from Zotero UI).
-    // Re-create the entry so Zotero recognises the proxy file on next startup.
-    addons.push({
-      id: ADDON_ID,
-      location: 'app-profile',
-      version: '1.0.0',
-      type: 'extension',
-      loader: null,
-      updateURL: null,
-      optionsURL: null,
-      aboutURL: null,
-      defaultLocale: { name: 'ZutiloRE', description: 'Zutilo Reloaded - Zotero Utility Plugin' },
-      visible: true,
-      active: true,
-      userDisabled: false,
-      appDisabled: false,
-      installDate: Date.now(),
-      updateDate: Date.now(),
-      applyBackgroundUpdates: 1,
-      path: distAbsPath,
-      rootURI: rootURI,
-      softDisabled: false,
-      foreignInstall: false,
-      seen: true,
-      startupData: null,
-    });
-    log('dev', `Added addon entry to extensions.json (was missing after uninstall)`);
+    // ZutiloRE not in extensions.json yet — it must be installed as XPI first
+    // so Zotero creates a correctly-structured entry. We cannot safely fabricate
+    // one (wrong fields cause Zotero to wipe the entire addons array).
+    // Just leave extensions.json untouched; the proxy file is in place and
+    // Zotero will pick it up after a manual reinstall or restart.
+    log('dev', 'WARNING: ZutiloRE not found in extensions.json.');
+    log('dev', '  Run: npm run dev:setup   to install ZPI and seed the entry.');
+    return;
   } else {
     addons[idx].path = distAbsPath;
     addons[idx].rootURI = rootURI;
@@ -316,8 +308,13 @@ function patchExtensionsJson(profileDir, distAbsPath) {
 
 function isZoteroRunning() {
   try {
-    execSync('pgrep -x zotero', { stdio: 'pipe' });
-    return true;
+    if (process.platform === 'win32') {
+      const out = execSync('tasklist /FI "IMAGENAME eq zotero.exe" /NH', { stdio: 'pipe', encoding: 'utf-8' });
+      return out.toLowerCase().includes('zotero.exe');
+    } else {
+      execSync('pgrep -x zotero', { stdio: 'pipe' });
+      return true;
+    }
   } catch {
     return false;
   }
@@ -326,15 +323,13 @@ function isZoteroRunning() {
 function launchZotero(profileDir) {
   const bin = findZoteroBin();
 
+  // Remove stale profile lock left by a previous forceful kill.
+  // If present, Zotero may refuse to start or show a locked-profile dialog.
+  const lockFile = path.join(profileDir, 'parent.lock');
+  try { fs.unlinkSync(lockFile); } catch { /* not present, fine */ }
+
   // Ensure log directory exists
   fs.mkdirSync(LOGS_DIR, { recursive: true });
-
-  // Truncate log file on new session
-  const logStream = fs.createWriteStream(LOG_FILE, { flags: 'w' });
-
-  // Write session header
-  const header = `--- ZutiloRE dev session started at ${new Date().toISOString()} ---\n`;
-  logStream.write(header);
 
   log('dev', `Launching: ${bin}`);
   log('dev', `Profile: ${profileDir}`);
@@ -347,11 +342,44 @@ function launchZotero(profileDir) {
     '-jsconsole',
   ];
 
+  // On Windows, zotero.exe is a GUI subsystem application — it never writes to
+  // stdout/stderr even when spawned with pipes.  Use --MOZ_LOG_FILE to make
+  // Zotero write debug output to our log file directly, then tail it.
+  const isWin = process.platform === 'win32';
+
+  if (isWin) {
+    // On Windows, zotero.exe is a GUI app with no stdout/stderr.
+    // Bootstrap.js (dev mode) monkey-patches Zotero.debug() to write to LOG_FILE.
+    // Log tailing is handled separately in modeServe (not here), because
+    // zotero.exe may fork and exit quickly, which would kill any interval here.
+
+    fs.writeFileSync(LOG_FILE, `--- ZutiloRE dev session started at ${new Date().toISOString()} ---\n\n`, 'utf-8');
+
+    const child = spawn(bin, args, {
+      stdio: 'ignore',
+      detached: false,
+    });
+
+    child.on('exit', (code, signal) => {
+      if (signal) {
+        log('dev', `Zotero process exited (signal: ${signal})`);
+      } else if (code !== 0) {
+        log('dev', `Zotero process exited (code: ${code})`);
+      }
+    });
+
+    return { child, logStream: null };
+  }
+
+  // Unix: zotero is a console app, pipe stdout/stderr normally
+  const logStream = fs.createWriteStream(LOG_FILE, { flags: 'w' });
+  const header = `--- ZutiloRE dev session started at ${new Date().toISOString()} ---\n`;
+  logStream.write(header);
+
   const child = spawn(bin, args, {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  // Process and write Zotero output
   function handleOutput(data) {
     const text = data.toString();
     for (const line of text.split('\n')) {
@@ -379,36 +407,47 @@ function launchZotero(profileDir) {
 
 // ----- Clean Shutdown -----
 
-function setupShutdownHandlers(zoteroChild, logStream) {
+function setupShutdownHandlers(zoteroChild, logStream, keepAlive) {
   let isShuttingDown = false;
 
   async function shutdown(signal) {
     if (isShuttingDown) return;
     isShuttingDown = true;
 
+    if (keepAlive) clearInterval(keepAlive);
+
     log('dev', `Received ${signal}, shutting down...`);
 
-    // Check if Zotero process is still alive (exitCode/signalCode are set once it exits)
-    const isAlive = zoteroChild &&
-      zoteroChild.exitCode === null &&
-      zoteroChild.signalCode === null &&
-      !zoteroChild.killed;
+    // On Windows, zotero.exe forks and the original child exits immediately,
+    // so zoteroChild is already dead. Use taskkill to find the real process.
+    if (process.platform === 'win32') {
+      if (isZoteroRunning()) {
+        log('dev', 'Stopping Zotero...');
+        try {
+          execSync('taskkill /F /IM zotero.exe', { stdio: 'pipe', shell: true });
+        } catch { /* already exited */ }
+      }
+    } else {
+      const isAlive = zoteroChild &&
+        zoteroChild.exitCode === null &&
+        zoteroChild.signalCode === null &&
+        !zoteroChild.killed;
 
-    if (isAlive) {
-      zoteroChild.kill('SIGTERM');
+      if (isAlive) {
+        zoteroChild.kill('SIGTERM');
 
-      // Force kill after 5 seconds
-      const killTimer = setTimeout(() => {
-        if (!zoteroChild.killed) {
-          log('dev', 'Force killing Zotero...');
-          zoteroChild.kill('SIGKILL');
-        }
-      }, 5000);
-      killTimer.unref();
+        const killTimer = setTimeout(() => {
+          if (!zoteroChild.killed) {
+            log('dev', 'Force killing Zotero...');
+            zoteroChild.kill('SIGKILL');
+          }
+        }, 5000);
+        killTimer.unref();
 
-      await new Promise(resolve => {
-        zoteroChild.on('exit', resolve);
-      });
+        await new Promise(resolve => {
+          zoteroChild.on('exit', resolve);
+        });
+      }
     }
 
     if (logStream) logStream.end();
@@ -419,6 +458,35 @@ function setupShutdownHandlers(zoteroChild, logStream) {
 
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
+}
+
+// ----- Log Tail (Windows) -----
+
+function startLogTail() {
+  if (!fs.existsSync(LOG_FILE)) return;
+
+  let tailOffset = fs.statSync(LOG_FILE).size;
+
+  setInterval(() => {
+    let size;
+    try { size = fs.statSync(LOG_FILE).size; } catch { return; }
+    if (size <= tailOffset) {
+      // File was truncated (e.g. Zotero restarted), reset offset
+      if (size < tailOffset) tailOffset = 0;
+      return;
+    }
+
+    const fd = fs.openSync(LOG_FILE, 'r');
+    const buf = Buffer.alloc(size - tailOffset);
+    fs.readSync(fd, buf, 0, buf.length, tailOffset);
+    fs.closeSync(fd);
+    tailOffset = size;
+
+    for (const line of buf.toString('utf-8').split('\n')) {
+      if (!line.trim()) continue;
+      process.stdout.write(line + '\n');
+    }
+  }, 500);
 }
 
 // ----- File Watcher -----
@@ -501,21 +569,34 @@ async function modeServe(options) {
   if (!options.noLaunch) {
     if (isZoteroRunning()) {
       log('dev', '[3/4] Zotero is already running - skipping launch');
-      log('dev', '  Restart Zotero manually to load updated plugin');
-      // Still set up log capture for existing output
+      log('dev', '  Restart Zotero manually to pick up the new plugin.');
       fs.mkdirSync(LOGS_DIR, { recursive: true });
     } else {
       log('dev', '[3/4] Launching Zotero...');
       zoteroProcess = launchZotero(profileDir);
-      setupShutdownHandlers(zoteroProcess.child, zoteroProcess.logStream);
     }
   } else {
     log('dev', '[3/4] Skipping Zotero launch (--no-launch)');
   }
 
+  // Always register shutdown handlers and a keepAlive so the watcher
+  // keeps running regardless of whether we launched Zotero ourselves.
+  // Without this, Node.js exits immediately when no child process is held.
+  const keepAlive = setInterval(() => {}, 1 << 30);
+  setupShutdownHandlers(
+    zoteroProcess?.child ?? null,
+    zoteroProcess?.logStream ?? null,
+    keepAlive,
+  );
+
   // Step 5: Start watcher
   log('dev', '[4/4] Starting file watcher...');
   startWatcher();
+
+  // Step 6: Tail log file on Windows (bootstrap.js writes Zotero.debug output here)
+  if (process.platform === 'win32') {
+    startLogTail();
+  }
 
   log('dev', '');
   log('dev', 'Dev server ready. Watching for changes...');

@@ -6,6 +6,8 @@
 var chromeHandle;
 var zutiloRE;
 var _devReloadInterval;
+var _devLogWriterInterval;
+var _originalZoteroDebug;
 
 function install(data, reason) {
   Zotero.debug('ZutiloRE: install() called');
@@ -73,9 +75,14 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
       await onMainWindowLoad({ window: Zotero.getMainWindows()[i] }, reason);
     }
 
-    // DEV: Start hot-reload watcher for proxy-file installations
+    // DEV: Start hot-reload watcher and log writer for proxy-file installations
     if (rootURI && rootURI.indexOf('file://') === 0) {
       _startDevReloadWatcher(id, rootURI);
+      // Log writer only needed on Windows — on Unix, dev.mjs pipes Zotero's
+      // stderr directly, so writing again from here would cause duplicate lines.
+      if (Services.appinfo.OS === 'WINNT') {
+        _startDevLogWriter(rootURI);
+      }
     }
 
   } catch (e) {
@@ -124,10 +131,18 @@ function shutdown({ id, version, resourceURI, rootURI }, reason) {
   }
 
   try {
-    // Stop dev reload watcher
+    // Stop dev tools (reload watcher + log writer)
     if (_devReloadInterval) {
       clearInterval(_devReloadInterval);
       _devReloadInterval = null;
+    }
+    if (_devLogWriterInterval) {
+      clearInterval(_devLogWriterInterval);
+      _devLogWriterInterval = null;
+    }
+    if (_originalZoteroDebug) {
+      Zotero.debug = _originalZoteroDebug;
+      _originalZoteroDebug = null;
     }
 
     // Clean up plugin
@@ -160,6 +175,48 @@ function shutdown({ id, version, resourceURI, rootURI }, reason) {
 
 function uninstall(data, reason) {
   Zotero.debug('ZutiloRE: uninstall() called');
+}
+
+/**
+ * DEV: Log writer — monkey-patches Zotero.debug() to also write to logs/zotero.log.
+ * Uses IOUtils.writeUTF8 (proven to work — the reload watcher already uses IOUtils).
+ * Only active for file:// (dev proxy) installs.
+ */
+function _startDevLogWriter(rootURI) {
+  var fileHandler = Services.io
+    .getProtocolHandler('file')
+    .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+  var rootDir = fileHandler.getFileFromURLSpec(rootURI);
+
+  // rootURI points to dist/, go up one level to project root
+  var projectRoot = rootDir.parent;
+  var logFile = projectRoot.clone();
+  logFile.append('logs');
+  logFile.append('zotero.log');
+  var logPath = logFile.path;
+
+  // Buffer messages, flush periodically
+  var buffer = [];
+  _originalZoteroDebug = Zotero.debug;
+
+  Zotero.debug = function(message, level) {
+    _originalZoteroDebug.apply(Zotero, arguments);
+    try {
+      var ts = new Date().toISOString().slice(11, 23);
+      buffer.push('[' + ts + '] ' + message);
+    } catch (e) {
+      // never break debug logging
+    }
+  };
+
+  _devLogWriterInterval = setInterval(function() {
+    if (buffer.length === 0) return;
+    var lines = buffer.splice(0, buffer.length);
+    var content = lines.join('\n') + '\n';
+    IOUtils.writeUTF8(logPath, content, { mode: 'appendOrCreate' }).catch(function() {});
+  }, 1000);
+
+  Zotero.debug('ZutiloRE: [dev] Log writer started, writing to ' + logPath);
 }
 
 /**
