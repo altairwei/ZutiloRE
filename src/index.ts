@@ -10,6 +10,7 @@ import { onStartup, onShutdown } from './hooks';
 import { registerMenus } from './modules/main';
 import { copyCollectionPath } from './modules/collections';
 import { updateMetadata } from './modules/metadata';
+import { initSnapshotCleaner, destroySnapshotCleaner } from './modules/snapshotCleaner';
 
 // Export plugin API for Zotero
 const zutiloRE = {
@@ -34,6 +35,9 @@ const zutiloRE = {
     for (const win of Zotero.getMainWindows()) {
       await this.onWindowLoad(win);
     }
+
+    // Initialize snapshot cleaner (reader toolbar button)
+    initSnapshotCleaner();
 
     this.initialized = true;
     Zotero.debug('ZutiloRE: Initialized successfully');
@@ -129,6 +133,7 @@ const zutiloRE = {
    */
   destroy(): void {
     Zotero.debug('ZutiloRE: Destroying...');
+    destroySnapshotCleaner();
     this.initialized = false;
   },
 
