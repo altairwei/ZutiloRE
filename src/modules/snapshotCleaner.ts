@@ -17,6 +17,7 @@ const ATTR_REMOVED = 'data-zutilore-removed';
 const ATTR_UI = 'data-zutilore-ui';
 const HIGHLIGHT_CLASS = 'zutilore-highlight';
 const TOOLBAR_ID = 'zutilore-cleaner-toolbar';
+const ATTR_HIDDEN = 'data-zutilore-hidden';
 
 interface RemovedEntry {
   element: HTMLElement;
@@ -560,49 +561,90 @@ async function saveChanges(session: CleanerSession): Promise<void> {
       throw new Error('Cannot determine snapshot file path');
     }
 
-    // Temporarily remove our UI from the DOM
-    const toolbar = session.toolbarEl;
-    const style = session.styleEl;
-    toolbar?.remove();
-    style?.remove();
-    session.snapshotDoc.body.classList.remove('zutilore-clean-active');
+    // Choose save strategy based on whether annotations exist
+    const annotations = item.getAnnotations();
+    let strategy: 'remove' | 'hide' | 'fix' = 'remove';
 
-    // Remove highlight
+    if (annotations.length > 0) {
+      const ps = Services.prompt;
+      const flags = ps.BUTTON_POS_0 * ps.BUTTON_TITLE_IS_STRING
+        + ps.BUTTON_POS_1 * ps.BUTTON_TITLE_IS_STRING
+        + ps.BUTTON_POS_2 * ps.BUTTON_TITLE_CANCEL;
+      const choice = ps.confirmEx(
+        null,
+        'HTML Editor',
+        `This snapshot has ${annotations.length} annotation(s) that may be affected.\n\n`
+        + '\u2022 Hide (Safe) \u2013 Hides elements with CSS display:none instead of '
+        + 'removing them from the DOM. The document structure stays intact, '
+        + 'so all annotation positions are preserved.\n\n'
+        + '\u2022 Remove + Fix \u2013 Removes elements from the DOM and recalculates '
+        + 'annotation positions automatically. Annotations whose target content '
+        + 'was removed cannot be recovered.',
+        flags,
+        'Hide (Safe)', 'Remove + Fix', '', null, {},
+      );
+      if (choice === 2) return;
+      strategy = choice === 0 ? 'hide' : 'fix';
+    }
+
+    // --- Prepare DOM for serialization ---
+    session.toolbarEl?.remove();
+    session.styleEl?.remove();
+    session.snapshotDoc.body.classList.remove('zutilore-clean-active');
     if (session.highlightedEl) {
       session.highlightedEl.classList.remove(HIGHLIGHT_CLASS);
     }
 
-    // Permanently remove hidden elements
+    // --- Apply chosen strategy ---
     const marked = session.snapshotDoc.querySelectorAll(`[${ATTR_REMOVED}]`);
     const count = marked.length;
-    for (const el of marked) {
-      el.remove();
+    let fixResult: { fixed: number; broken: number } | null = null;
+
+    if (strategy === 'hide') {
+      applyHideStrategy(marked);
+    } else if (strategy === 'fix') {
+      fixResult = await applyFixStrategy(session, item, marked);
+    } else {
+      for (const el of marked) el.remove();
     }
 
-    // Serialize the modified document
+    // --- Serialize and write ---
     const html = serializeDoc(session.snapshotDoc);
-
-    // Write to disk
     await (Zotero as any).File.putContentsAsync(filePath, html);
 
-    Zotero.debug(`ZutiloRE: Saved snapshot, ${count} element(s) removed`);
+    // Notify Zotero sync system that the file has changed so it can
+    // recalculate the storageHash and mark the attachment for upload.
+    item.attachmentSyncState = 0; // Zotero.Sync.Storage.Local.SYNC_STATE_TO_UPLOAD
+    await item.saveTx({ skipAll: true });
 
-    // Cleanup session (stacks are now invalid)
+    // --- Build notification message ---
+    let msg: string;
+    if (strategy === 'hide') {
+      msg = `${count} element(s) hidden. Annotations preserved.`;
+    } else if (strategy === 'fix' && fixResult) {
+      const parts = [`${count} element(s) removed.`];
+      if (fixResult.fixed > 0) parts.push(`${fixResult.fixed} annotation(s) fixed.`);
+      if (fixResult.broken > 0) parts.push(`${fixResult.broken} annotation(s) broken.`);
+      if (fixResult.fixed === 0 && fixResult.broken === 0) parts.push('No annotations affected.');
+      msg = parts.join(' ');
+    } else {
+      msg = `${count} element(s) removed.`;
+    }
+    Zotero.debug(`ZutiloRE: Saved snapshot \u2013 ${msg}`);
+
+    // --- Cleanup session ---
     session.undoStack = [];
     session.redoStack = [];
     for (const fn of session.cleanupFns) fn();
     session.cleanupFns = [];
-
     if (session.toggleButton) {
       session.toggleButton.classList.remove('active');
     }
-
     session.active = false;
     session.highlightedEl = null;
     sessions.delete(session.reader._instanceID);
 
-    // Show brief notification
-    showNotification(session.snapshotDoc, count);
+    showNotification(session.snapshotDoc, msg);
   } catch (e) {
     Zotero.debug(`ZutiloRE: Failed to save snapshot: ${e}`);
 
@@ -620,6 +662,132 @@ async function saveChanges(session: CleanerSession): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Save strategies
+// ---------------------------------------------------------------------------
+
+/**
+ * Hide strategy: apply inline display:none instead of removing elements.
+ *
+ * DOM structure (tag names, nth-child indices) is unchanged, so
+ * CssSelector-based annotation positions remain valid. Text nodes inside
+ * hidden elements are still traversable by createNodeIterator(SHOW_TEXT),
+ * so TextPositionSelector character offsets are also preserved.
+ */
+function applyHideStrategy(marked: NodeListOf<Element>): void {
+  for (const el of marked) {
+    el.removeAttribute(ATTR_REMOVED);
+    (el as HTMLElement).style.setProperty('display', 'none', 'important');
+    el.setAttribute(ATTR_HIDDEN, 'true');
+  }
+}
+
+/**
+ * Fix strategy: remove elements from the DOM, then recalculate annotation
+ * positions using the reader's own selector resolution.
+ *
+ * 1. Resolve every annotation's stored position to a live DOM Range
+ *    (via SnapshotView.toDisplayedRange).
+ * 2. Remove the marked elements — surviving Ranges remain attached to
+ *    their text nodes because DOM Range endpoints are live references.
+ * 3. Re-generate each selector from the surviving Range
+ *    (via SnapshotView.toSelector) and update the annotation in the DB.
+ *
+ * Annotations whose target content was removed will have their Range
+ * detached from the document and are reported as "broken".
+ */
+async function applyFixStrategy(
+  session: CleanerSession,
+  item: any,
+  marked: NodeListOf<Element>,
+): Promise<{ fixed: number; broken: number }> {
+  const view = session.reader._internalReader?._primaryView;
+  const annotations = item.getAnnotations();
+
+  if (!view
+      || typeof view.toDisplayedRange !== 'function'
+      || typeof view.toSelector !== 'function') {
+    Zotero.debug('ZutiloRE: SnapshotView API unavailable, falling back to plain remove');
+    for (const el of marked) el.remove();
+    return { fixed: 0, broken: annotations.length };
+  }
+
+  // Step 1: Resolve all annotation positions to live DOM Ranges
+  const resolved: Array<{ ann: any; range: Range | null }> = [];
+  for (const ann of annotations) {
+    try {
+      const position = JSON.parse(ann.annotationPosition);
+      const range = view.toDisplayedRange(position);
+      resolved.push({ ann, range });
+    } catch {
+      resolved.push({ ann, range: null });
+    }
+  }
+
+  // Step 2: Remove marked elements (Ranges pointing to surviving nodes
+  // stay valid because Range endpoints are live DOM references)
+  for (const el of marked) {
+    el.remove();
+  }
+
+  // Step 3: Recalculate positions from surviving Ranges
+  let fixed = 0;
+  let broken = 0;
+
+  for (const { ann, range } of resolved) {
+    if (!range || range.collapsed) {
+      broken++;
+      continue;
+    }
+    try {
+      // Range endpoints removed from document — annotation is lost
+      if (!session.snapshotDoc.contains(range.startContainer)
+          || !session.snapshotDoc.contains(range.endContainer)) {
+        broken++;
+        continue;
+      }
+
+      const newSelector = view.toSelector(range);
+      if (!newSelector) {
+        broken++;
+        continue;
+      }
+
+      const newPosition = JSON.stringify(newSelector);
+      // _getSortIndex is TypeScript-private but accessible at runtime
+      let newSortIndex: string | undefined;
+      try {
+        newSortIndex = view._getSortIndex(range);
+      } catch {
+        // Ignore — sortIndex update is best-effort
+      }
+
+      let changed = false;
+      if (newPosition !== ann.annotationPosition) {
+        ann.annotationPosition = newPosition;
+        changed = true;
+      }
+      if (newSortIndex && newSortIndex !== ann.annotationSortIndex) {
+        ann.annotationSortIndex = newSortIndex;
+        changed = true;
+      }
+      if (changed) {
+        await ann.saveTx();
+        fixed++;
+      }
+    } catch (e) {
+      Zotero.debug(`ZutiloRE: Failed to fix annotation ${ann.key}: ${e}`);
+      broken++;
+    }
+  }
+
+  return { fixed, broken };
+}
+
+// ---------------------------------------------------------------------------
+// Serialization
+// ---------------------------------------------------------------------------
+
 function serializeDoc(doc: Document): string {
   let html = '';
   if (doc.doctype) {
@@ -632,7 +800,7 @@ function serializeDoc(doc: Document): string {
   return html;
 }
 
-function showNotification(doc: Document, count: number): void {
+function showNotification(doc: Document, message: string): void {
   const el = doc.createElement('div');
   el.setAttribute(ATTR_UI, 'true');
   el.style.cssText = [
@@ -643,7 +811,7 @@ function showNotification(doc: Document, count: number): void {
     'font-size:14px', 'box-shadow:0 4px 12px rgba(0,0,0,0.3)',
     'transition:opacity 0.5s',
   ].join(';');
-  el.textContent = `Saved! ${count} element(s) removed.`;
+  el.textContent = `Saved! ${message}`;
   doc.body.appendChild(el);
   setTimeout(() => {
     el.style.opacity = '0';
