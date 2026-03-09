@@ -273,12 +273,14 @@ function patchExtensionsJson(profileDir, distAbsPath) {
   const addons = data.addons;
   if (!Array.isArray(addons)) return;
 
-  // Build a file:/// rootURI pointing to distAbsPath (with trailing slash).
-  // On Windows, path.resolve returns backslashes (D:\src\...) which must be
-  // converted to forward slashes, and file URIs need three slashes before an
-  // absolute path (file:///D:/src/...).
+  // Build a file:// rootURI pointing to distAbsPath (with trailing slash).
+  // On Windows, path.resolve gives backslashes (D:\src\...) which must be
+  // converted to forward slashes, and an absolute Windows path needs an extra
+  // slash: file:///D:/src/...  On Unix, the path already starts with /,
+  // so file:// + /path gives the correct file:///path.
   const posixPath = distAbsPath.replace(/\\/g, '/');
-  const rootURI = 'file:///' + posixPath.replace(/ /g, '%20') + '/';
+  const prefix = posixPath.startsWith('/') ? 'file://' : 'file:///';
+  const rootURI = prefix + posixPath.replace(/ /g, '%20') + '/';
 
   const idx = addons.findIndex(a => a.id === ADDON_ID);
   if (idx === -1) {
