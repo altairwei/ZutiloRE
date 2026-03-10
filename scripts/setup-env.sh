@@ -3,11 +3,11 @@
 # Usage: source ./scripts/setup-env.sh
 
 # Zotero paths
-export ZOTERO_HOME="${ZOTERO_HOME:-$HOME/.zotero}"
+export ZOTERO_HOME="${ZOTERO_HOME:-$HOME/Library/Application Support/Zotero}"
 export ZOTERO_PROFILE="${ZOTERO_PROFILE:-zutilore-test}"
 
-# Create test profile directory
-export ZOTERO_PROFILE_DIR="$HOME/.zotero/zotero/$ZOTERO_PROFILE"
+# Create test profile directory (macOS path)
+export ZOTERO_PROFILE_DIR="$ZOTERO_HOME/profiles/$ZOTERO_PROFILE"
 mkdir -p "$ZOTERO_PROFILE_DIR"
 
 # Create profile prefs.js if not exists
@@ -30,8 +30,14 @@ if [ -d "/tmp/zotero" ]; then
     export ZOTERO_BIN="/tmp/zotero/zotero"
 elif [ -d "$HOME/.local/zotero" ]; then
     export ZOTERO_BIN="$HOME/.local/zotero/zotero"
+elif [ -d "/Applications/Zotero.app" ]; then
+    # macOS
+    export ZOTERO_BIN="/Applications/Zotero.app/Contents/MacOS/zotero"
+elif [ -d "$HOME/Applications/Zotero.app" ]; then
+    # macOS user apps
+    export ZOTERO_BIN="$HOME/Applications/Zotero.app/Contents/MacOS/zotero"
 else
-    echo "Error: Zotero not found. Please run install-zotero.sh first."
+    echo "Error: Zotero not found. Please install Zotero first."
     return 1
 fi
 

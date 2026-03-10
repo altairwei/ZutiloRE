@@ -37,3 +37,8 @@ zutilore-merge-dialog-instructions = Select field values to keep. Click the drop
 zutilore-merge-dialog-update-creators = Replace creators with fetched data
 zutilore-merge-dialog-apply = Apply
 zutilore-merge-dialog-cancel = Cancel
+
+zutilore-cleaner-title = HTML Editor
+zutilore-cleaner-save-confirm = You have { $count } unsaved change(s). Save before exiting?
+zutilore-cleaner-save-success = Saved! { $count } element(s) removed.
+zutilore-cleaner-hint = Click element to remove. Scroll to navigate. Ctrl+Z/Y undo/redo.

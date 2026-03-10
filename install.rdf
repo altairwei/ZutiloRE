@@ -6,17 +6,16 @@
     <em:name>ZutiloRE</em:name>
     <em:version>1.0.0</em:version>
     <em:description>Zotero utility plugin for enhanced item management</em:description>
-    <em:creator>Karu</em:creator>
+    <em:creator>Altair Wei</em:creator>
     <em:homepageURL>https://github.com/altairwei/ZutiloRE</em:homepageURL>
     <em:bootstrap>true</em:bootstrap>
     <em:type>2</em:type>
     <em:unpack>true</em:unpack>
-    <em:strictCompatibility>true</em:strictCompatibility>
     <em:targetApplication>
       <Description>
         <em:id>zotero@chnm.gmu.edu</em:id>
         <em:minVersion>7.0</em:minVersion>
-        <em:maxVersion>8.*</em:maxVersion>
+        <em:maxVersion>8.0</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

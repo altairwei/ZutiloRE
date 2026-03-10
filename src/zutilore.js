@@ -97,7 +97,8 @@ var zutiloRE = {
       { id: "zutilore-relate-items", label: "Relate Items" },
       { id: "zutilore-copy-select-link", label: "Copy Select Link" },
       { id: "zutilore-copy-item-id", label: "Copy Item ID" },
-      { id: "zutilore-copy-item-uri", label: "Copy Zotero URI" }
+      { id: "zutilore-copy-item-uri", label: "Copy Zotero URI" },
+      { id: "zutilore-update-metadata", label: "Update Metadata" }
     ];
 
     var self = this;
@@ -154,6 +155,9 @@ var zutiloRE = {
         break;
       case "zutilore-copy-item-uri":
         this.copyZoteroItemURI();
+        break;
+      case "zutilore-update-metadata":
+        this.updateMetadata();
         break;
     }
   },
@@ -406,6 +410,145 @@ var zutiloRE = {
     this.showNotification("URIs Copied", "Copied " + uris.length + " Zotero URI(s)");
   },
 
+  updateMetadata: async function() {
+    var items = this.getSelectedItems();
+    if (!items.length) {
+      this.showNotification("Error", "No items selected");
+      return;
+    }
+
+    // Filter to regular items only
+    var regularItems = items.filter(function(item) {
+      return item.isRegularItem && item.isRegularItem();
+    });
+    if (!regularItems.length) {
+      this.showNotification("Error", "No regular items selected (attachments/notes excluded)");
+      return;
+    }
+
+    var successCount = 0;
+    var failCount = 0;
+    var noIdCount = 0;
+    var self = this;
+
+    for (var i = 0; i < regularItems.length; i++) {
+      var item = regularItems[i];
+      var identifier = self._buildIdentifier(item);
+      if (!identifier) {
+        noIdCount++;
+        continue;
+      }
+
+      var idStr = identifier.DOI || identifier.ISBN;
+      self.log("Fetching metadata for " + idStr);
+
+      try {
+        var translate = new Zotero.Translate.Search();
+        translate.setIdentifier(identifier);
+        var translators = await translate.getTranslators();
+        if (!translators.length) {
+          failCount++;
+          continue;
+        }
+        translate.setTranslator(translators);
+
+        var results = await translate.translate({
+          libraryID: false,
+          saveAttachments: false
+        });
+
+        if (results && results.length > 0) {
+          var data = results[0];
+          var updated = self._applyMetadata(item, data);
+          if (updated) {
+            await item.saveTx();
+          }
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        failCount++;
+        self.log("Error updating item " + item.key + ": " + e);
+      }
+    }
+
+    var parts = [];
+    if (successCount > 0) parts.push(successCount + " updated");
+    if (failCount > 0) parts.push(failCount + " failed");
+    if (noIdCount > 0) parts.push(noIdCount + " no DOI/ISBN");
+    self.showNotification("Update Metadata", parts.join(", ") || "No items processed");
+  },
+
+  _buildIdentifier: function(item) {
+    // Try DOI field
+    try {
+      var doi = item.getField("DOI");
+      if (doi) return { DOI: doi.toString().trim() };
+    } catch (e) {}
+
+    // Try URL field for doi.org links
+    try {
+      var url = item.getField("url");
+      if (url) {
+        var doiMatch = url.toString().match(/doi\.org\/(.+)/i);
+        if (doiMatch) return { DOI: doiMatch[1].replace(/\/$/, "") };
+      }
+    } catch (e) {}
+
+    // Try Extra field
+    try {
+      var extra = item.getField("extra");
+      if (extra) {
+        var doiMatch2 = extra.toString().match(/DOI:\s*(.+)/i);
+        if (doiMatch2) return { DOI: doiMatch2[1].trim() };
+      }
+    } catch (e) {}
+
+    // Try ISBN
+    try {
+      var isbn = item.getField("ISBN");
+      if (isbn) return { ISBN: isbn.toString().trim() };
+    } catch (e) {}
+
+    return null;
+  },
+
+  _applyMetadata: function(item, data) {
+    var fields = [
+      "title", "abstractNote", "date", "publicationTitle", "volume",
+      "issue", "pages", "DOI", "ISSN", "ISBN", "url", "language",
+      "publisher", "place", "journalAbbreviation", "series", "seriesTitle",
+      "edition", "section", "type", "rights", "shortTitle",
+      "conferenceName", "proceedingsTitle", "university", "institution"
+    ];
+
+    var updated = false;
+    for (var i = 0; i < fields.length; i++) {
+      var field = fields[i];
+      if (data[field] !== undefined && data[field] !== null && data[field] !== "") {
+        try {
+          var oldValue = item.getField(field);
+          var newValue = data[field].toString();
+          if (oldValue !== newValue) {
+            item.setField(field, newValue);
+            updated = true;
+          }
+        } catch (e) {
+          // Field may not be valid for this item type
+        }
+      }
+    }
+
+    // Update creators
+    if (data.creators && Array.isArray(data.creators) && data.creators.length > 0) {
+      item.setCreators(data.creators);
+      updated = true;
+    }
+
+    return updated;
+  },
+
   copyToClipboard: function(text) {
     var clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
       .getService(Components.interfaces.nsIClipboardHelper);
@@ -454,4 +597,29 @@ var zutiloRE = {
 // Expose to Zotero for oncommand access
 if (typeof Zotero !== 'undefined') {
   Zotero.zutiloRE = zutiloRE;
+
+  // Development helper: expose reload function globally
+  // Usage in Developer Tools console: Zotero.zutiloRE.devReload()
+  zutiloRE.devReload = function() {
+    dump("ZutiloRE: Development reload triggered\n");
+    // Re-load the main script
+    var rootURI = this._rootURI || "chrome://zutilore/content/";
+    var ctx = {
+      Zotero: Zotero,
+      Services: Services,
+      Components: Components
+    };
+    ctx._globalThis = ctx;
+
+    try {
+      // Clear existing modules
+      delete require.cache[require.resolve(rootURI + "src/zutilore.js")];
+      // Re-load main script
+      Services.scriptloader.loadSubScript(rootURI + "src/zutilore.js", ctx);
+      dump("ZutiloRE: Script reloaded\n");
+    } catch (e) {
+      dump("ZutiloRE: Reload error: " + e + "\n");
+    }
+    return "Reload initiated";
+  };
 }

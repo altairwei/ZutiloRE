@@ -1,11 +1,14 @@
 # ZutiloRE Build Artifacts
 *.xpi
 *.zip
+dist/
+.scaffold/build/
 
 # macOS
 .DS_Store
 
 # IDE
+.claude/
 .vscode/
 .idea/
 *.swp
@@ -13,9 +16,13 @@
 
 # Logs
 *.log
+logs/
 
 # Dependencies
 node_modules/
+
+# Local developer config (use zotero-plugin.ini.example as template)
+zotero-plugin.ini
 
 # Sensitive files (API keys, credentials)
 *.env
@@ -29,3 +36,4 @@ secrets.json
 *.tmp
 *.temp
 *~
+_reference/
